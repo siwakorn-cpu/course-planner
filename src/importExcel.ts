@@ -125,7 +125,7 @@ export function rowsToSubjects(
     if (key && !colMap.has(key)) colMap.set(key, i);
   });
 
-  const required: CanonicalKey[] = ['code', 'name', 'area', 'type', 'credits', 'level'];
+  const required: CanonicalKey[] = ['code', 'name', 'area', 'type', 'level'];
   const missing = required.filter((k) => !colMap.has(k));
   if (missing.length > 0) {
     const thai: Record<CanonicalKey, string> = {
@@ -156,7 +156,9 @@ export function rowsToSubjects(
     const area = resolveArea(String(get(row, 'area')));
     const type = resolveType(String(get(row, 'type')));
     const level = resolveLevel(String(get(row, 'level')));
-    const credits = toNumber(get(row, 'credits'));
+    // หน่วยกิต: ถ้าเว้นว่าง/ไม่มีคอลัมน์ = 0 (เช่น กิจกรรมพัฒนาผู้เรียน) ; ถ้ากรอกค่าผิดถึงจะเตือน
+    const creditsRaw = norm(get(row, 'credits'));
+    const credits = creditsRaw === '' ? 0 : toNumber(get(row, 'credits'));
     let periods = colMap.has('periods') ? toNumber(get(row, 'periods')) : null;
 
     if (!code) errors.push('ไม่มีรหัสวิชา');
@@ -164,7 +166,7 @@ export function rowsToSubjects(
     if (!area) errors.push(`กลุ่มสาระไม่ถูกต้อง ("${norm(get(row, 'area'))}")`);
     if (!type) errors.push(`ประเภทไม่ถูกต้อง ("${norm(get(row, 'type'))}") ต้องเป็น พื้นฐาน/เพิ่มเติม`);
     if (!level) errors.push(`ระดับไม่ถูกต้อง ("${norm(get(row, 'level'))}") ต้องเป็น ม.ต้น/ม.ปลาย`);
-    if (credits == null || credits < 0) errors.push('หน่วยกิตไม่ถูกต้อง');
+    if (credits == null || credits < 0) errors.push(`หน่วยกิตไม่ถูกต้อง ("${creditsRaw}")`);
 
     const codeKey = code.toLowerCase();
     if (code && seenInFile.has(codeKey)) errors.push('รหัสวิชาซ้ำกันภายในไฟล์');
@@ -240,9 +242,9 @@ export async function downloadTemplate(): Promise<void> {
     ['คอลัมน์', 'คำอธิบาย', 'ค่าที่ใช้ได้'],
     ['รหัสวิชา', 'รหัสประจำวิชา (ห้ามซ้ำ; ถ้าซ้ำกับที่มีอยู่จะอัปเดตทับ)', 'เช่น ค21101'],
     ['ชื่อวิชา', 'ชื่อรายวิชา', 'ข้อความ'],
-    ['กลุ่มสาระ', '1 ใน 8 กลุ่มสาระ', AREAS.join(' / ')],
+    ['กลุ่มสาระ', '1 ใน 8 กลุ่มสาระ + กิจกรรมพัฒนาผู้เรียน', AREAS.join(' / ')],
     ['ประเภท', 'ประเภทวิชา', 'พื้นฐาน / เพิ่มเติม'],
-    ['หน่วยกิต', 'จำนวนหน่วยกิต', 'ตัวเลข เช่น 0.5, 1, 1.5'],
+    ['หน่วยกิต', 'จำนวนหน่วยกิต (เว้นว่างได้ = 0 เช่น กิจกรรมพัฒนาผู้เรียน)', 'ตัวเลข เช่น 0, 0.5, 1, 1.5'],
     ['คาบ/สัปดาห์', 'คาบต่อสัปดาห์ (เว้นว่างได้ = คำนวณจากหน่วยกิตให้อัตโนมัติ)', 'ตัวเลข'],
     ['ระดับ', 'ระดับชั้น', 'ม.ต้น / ม.ปลาย'],
   ]);
