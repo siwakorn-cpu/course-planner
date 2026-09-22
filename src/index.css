@@ -761,6 +761,47 @@ th.sortable:hover { color: var(--text); }
   margin-bottom: 1rem;
 }
 
+/* สรุปแยกรายกลุ่มในหน้าจัดรายวิชา (แบบกะทัดรัด) */
+.offering-summary-wrap {
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.offering-summary-table {
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  width: auto;
+  max-width: 100%;
+}
+
+.offering-summary-table th,
+.offering-summary-table td {
+  padding: 0.28rem 0.7rem;
+  border: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.offering-summary-table th {
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+.offering-summary-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.offering-summary-table .offering-summary-total td {
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+.offering-summary-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.76rem;
+}
+
 .print-report-visible .print-area-section {
   overflow: hidden;
   border: 1px solid var(--border);

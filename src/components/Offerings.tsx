@@ -274,6 +274,27 @@ function AssignByClass({ api }: Props) {
     return s ? sum + offeringPeriods(o, s) : sum;
   }, 0);
 
+  // สรุปแยกรายกลุ่มเลือกในภาคเรียนนี้ (แต่ละกลุ่ม = วิชาเรียนร่วมทั้งห้อง + วิชาเฉพาะกลุ่มนั้น)
+  // ถ้าห้องไม่มีกลุ่มเลือก จะเหลือแถวเดียว = ทั้งห้อง
+  const groupSummaries = useMemo(() => {
+    const buckets = classGroupList.length > 0 ? classGroupList : [''];
+    return buckets.map((g) => {
+      const inBucket = rows.filter((o) => {
+        const og = o.group?.trim() ?? '';
+        return g === '' ? true : og === '' || og === g;
+      });
+      let periods = 0;
+      let credits = 0;
+      for (const o of inBucket) {
+        const s = sMap.get(o.subjectId);
+        if (!s) continue;
+        periods += offeringPeriods(o, s);
+        if (s.type !== 'กิจกรรมพัฒนาผู้เรียน') credits += s.credits;
+      }
+      return { group: g, count: inBucket.length, periods, credits };
+    });
+  }, [rows, classGroupList, sMap]);
+
   return (
     <div>
       <div className="toolbar">
@@ -306,16 +327,41 @@ function AssignByClass({ api }: Props) {
       </div>
 
       {summary && (
-        <div className="grid cols-auto" style={{ marginBottom: '1rem' }}>
-          <div className="card stat"><span className="stat-value" style={{ fontSize: '1.4rem' }}>{rows.length}</span><span className="stat-label">วิชาในภาคเรียนนี้</span></div>
-          <div className="card stat"><span className="stat-value" style={{ fontSize: '1.4rem' }}>{termPeriods}</span><span className="stat-label">คาบ/สัปดาห์ (ภาคเรียนนี้)</span></div>
-          <div className="card stat"><span className="stat-value" style={{ fontSize: '1.4rem' }}>{summary.total}</span><span className="stat-label">{hasGroups ? 'หน่วยกิตรวมทุกกลุ่ม' : 'หน่วยกิตสะสมทั้งปี'}</span></div>
+        <div className="offering-summary-wrap">
+          <table className="offering-summary-table">
+            <thead>
+              <tr>
+                <th>{hasGroups ? 'กลุ่ม' : 'สรุป'}</th>
+                <th className="num">วิชา</th>
+                <th className="num">คาบ/สัปดาห์</th>
+                <th className="num">หน่วยกิตรวม</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groupSummaries.map((g) => (
+                <tr key={g.group || '__all__'}>
+                  <td>{g.group ? <span className="badge add">{g.group}</span> : 'ทั้งห้อง'}</td>
+                  <td className="num">{g.count}</td>
+                  <td className="num">{g.periods}</td>
+                  <td className="num">{g.credits}</td>
+                </tr>
+              ))}
+              {hasGroups && (
+                <tr className="offering-summary-total">
+                  <td>รวมทุกวิชาในห้อง</td>
+                  <td className="num">{rows.length}</td>
+                  <td className="num">{termPeriods}</td>
+                  <td className="num">{summary.total}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          {hasGroups && (
+            <p className="muted offering-summary-note">
+              แต่ละกลุ่มนับวิชาเรียนร่วมทั้งห้อง + วิชาเฉพาะกลุ่มนั้น (= สิ่งที่นักเรียนในกลุ่มเรียนจริง) · หน่วยกิต/คาบเป็นของภาคเรียนนี้
+            </p>
+          )}
         </div>
-      )}
-      {hasGroups && (
-        <p className="muted" style={{ marginTop: '-0.5rem', fontSize: '0.85rem' }}>
-          ห้องนี้มีกลุ่มเลือก {classGroupList.length} กลุ่ม ({classGroupList.join(', ')}) — ดูหน่วยกิตที่ถูกต้อง<strong>รายกลุ่ม</strong>ได้ที่แท็บ “หน่วยกิตรวมสะสม”
-        </p>
       )}
 
       {rows.length === 0 ? (
