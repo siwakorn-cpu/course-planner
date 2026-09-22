@@ -188,25 +188,25 @@ export function SettingsPanel({ api }: Props) {
 
       <div className="card" style={{ borderColor: 'var(--danger)' }}>
         <h3 className="section-title" style={{ marginTop: 0, color: 'var(--danger)' }}>ล้างข้อมูล & เริ่มใหม่</h3>
-        <p className="muted" style={{ marginTop: 0 }}>ลบข้อมูลทั้งหมดในเครื่องนี้ แล้วโหลดชุดข้อมูลตัวอย่างกลับมา (แนะนำให้ Export สำรองไว้ก่อน)</p>
+        <p className="muted" style={{ marginTop: 0 }}>ลบข้อมูลทั้งหมดให้ว่างเปล่า เริ่มต้นใหม่จากศูนย์ (ไม่มีข้อมูลตัวอย่างกลับมา — แนะนำให้ Export สำรองไว้ก่อน)</p>
         <button
           className="btn danger"
           onClick={() =>
             setConfirmState({
               title: 'ล้างข้อมูลทั้งหมด',
-              message: 'ยืนยันล้างข้อมูลทั้งหมดในเครื่องนี้ แล้วโหลดชุดข้อมูลตัวอย่างกลับมา ?\n(ควร Export สำรองไว้ก่อน)',
+              message: 'ยืนยันล้างข้อมูลทั้งหมดให้ว่างเปล่า เริ่มต้นใหม่จากศูนย์ ?\nข้อมูลนี้จะกู้คืนไม่ได้ (ควร Export สำรองไว้ก่อน)',
               confirmLabel: 'ล้างข้อมูล',
               danger: true,
               onConfirm: () => {
                 api.resetAll();
                 setDraft(structuredClone(DEFAULT_SETTINGS));
-                setMsg('ล้างข้อมูลและโหลดตัวอย่างใหม่แล้ว ✓');
+                setMsg('ล้างข้อมูลทั้งหมดแล้ว เริ่มจากว่างเปล่า ✓');
                 setTimeout(() => setMsg(''), 2500);
               },
             })
           }
         >
-          🗑️ ล้างข้อมูลทั้งหมด & โหลดตัวอย่าง
+          🗑️ ล้างข้อมูลทั้งหมด
         </button>
       </div>
 

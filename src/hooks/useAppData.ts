@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppData, ClassRoom, CompletedCourse, Level, Offering, Settings, Subject, Teacher } from '../types';
 import { gradeToLevel } from '../types';
 import { emptyData, loadData, saveData } from '../storage';
-import { seedData } from '../seedData';
 import { promoteAllData } from '../promote';
 
 /** id สุ่มแบบสั้น สำหรับข้อมูลที่ผู้ใช้เพิ่มเอง */
@@ -303,7 +302,7 @@ export function useAppData(): AppDataApi {
 
   const replaceAll = useCallback((d: AppData) => setData(d), []);
 
-  const resetAll = useCallback(() => setData(seedData()), []);
+  const resetAll = useCallback(() => setData(emptyData()), []);
 
   return {
     data,

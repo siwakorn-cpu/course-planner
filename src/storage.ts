@@ -17,7 +17,6 @@ import {
   type Teacher,
   gradeToLevel,
 } from './types';
-import { seedData } from './seedData';
 
 const STORAGE_KEY = 'course-planner:data';
 
@@ -104,38 +103,29 @@ export function normalize(raw: Partial<AppData> | undefined): AppData {
   };
 }
 
-/** ข้อมูลเริ่มต้นเมื่อยังไม่เคยมีข้อมูล = ชุดตัวอย่าง */
-export function initialData(): AppData {
-  return seedData();
-}
-
-/** ก้อนข้อมูลว่าง (ใช้เป็น placeholder ระหว่างกำลังโหลด) */
+/** ก้อนข้อมูลว่าง (ใช้เป็นค่าเริ่มต้นเมื่อยังไม่เคยมีข้อมูล และเป็น placeholder ระหว่างกำลังโหลด) */
 export function emptyData(): AppData {
   return normalize(undefined);
 }
 
 /**
  * โหลดข้อมูล (async)
- *  - โหมดฐานข้อมูลกลาง: ดึงจาก API; ถ้ายังไม่มีข้อมูล → สร้างชุดตัวอย่างแล้วบันทึกขึ้นเซิร์ฟเวอร์
- *  - โหมดในเครื่อง: อ่านจาก localStorage; ถ้าไม่มี/พัง → ชุดตัวอย่าง
+ *  - โหมดฐานข้อมูลกลาง: ดึงจาก API; ถ้ายังไม่มีข้อมูล → เริ่มจากข้อมูลว่าง (ไม่ยัดชุดตัวอย่าง)
+ *  - โหมดในเครื่อง: อ่านจาก localStorage; ถ้าไม่มี/พัง → เริ่มจากข้อมูลว่าง
  */
 export async function loadData(): Promise<AppData> {
   if (useRemote) {
     const raw = await apiGetData();
-    if (!raw) {
-      const seed = initialData();
-      await apiPutData(seed);
-      return seed;
-    }
+    if (!raw) return emptyData();
     return normalize(raw);
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return initialData();
+    if (!raw) return emptyData();
     return normalize(JSON.parse(raw) as Partial<AppData>);
   } catch (err) {
-    console.warn('โหลดข้อมูลไม่สำเร็จ ใช้ข้อมูลตัวอย่างแทน', err);
-    return initialData();
+    console.warn('โหลดข้อมูลไม่สำเร็จ เริ่มจากข้อมูลว่างแทน', err);
+    return emptyData();
   }
 }
 
