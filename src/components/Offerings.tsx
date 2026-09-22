@@ -188,7 +188,7 @@ function AssignByClass({ api }: Props) {
       )}
       {hasGroups && (
         <p className="muted" style={{ marginTop: '-0.5rem', fontSize: '0.85rem' }}>
-          ห้องนี้มีกลุ่มเลือก {classGroupList.length} กลุ่ม ({classGroupList.join(', ')}) — ดูหน่วยกิตที่ถูกต้อง<strong>รายกลุ่ม</strong>ได้ที่แท็บ “สรุปหน่วยกิต”
+          ห้องนี้มีกลุ่มเลือก {classGroupList.length} กลุ่ม ({classGroupList.join(', ')}) — ดูหน่วยกิตที่ถูกต้อง<strong>รายกลุ่ม</strong>ได้ที่แท็บ “หน่วยกิตรวมสะสม”
         </p>
       )}
 

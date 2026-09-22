@@ -156,7 +156,7 @@ export function CumulativeCredits({ api }: Props) {
       </div>
 
       <div className="toolbar">
-        <span className="muted">รวมหน่วยกิตเดิม + ปีปัจจุบัน (ต่างจากแท็บ “สรุปหน่วยกิต” ที่ดูเฉพาะปีนี้)</span>
+        <span className="muted">รวมหน่วยกิตเดิม + ปีปัจจุบัน พร้อมเทียบเกณฑ์การจบ</span>
         <span className="spacer" />
         <button className="btn" onClick={() => downloadCompletedTemplate()}>⬇️ แม่แบบหน่วยกิตเดิม</button>
         <button className="btn" onClick={() => fileRef.current?.click()}>⬆️ นำเข้าหน่วยกิตเดิม</button>

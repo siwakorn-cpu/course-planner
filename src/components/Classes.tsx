@@ -197,7 +197,7 @@ export function Classes({ api }: Props) {
                 </div>
                 {hasGroups && (
                   <p className="muted" style={{ margin: '0.2rem 0 0', fontSize: '0.78rem' }}>
-                    + {groups.length} กลุ่มเลือก (ดูหน่วยกิตรายกลุ่มที่ “สรุปหน่วยกิต”)
+                    + {groups.length} กลุ่มเลือก (ดูหน่วยกิตรายกลุ่มที่ “หน่วยกิตรวมสะสม”)
                   </p>
                 )}
                 {done.total > 0 && (

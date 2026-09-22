@@ -7,7 +7,6 @@ import { Subjects } from './components/Subjects';
 import { Classes } from './components/Classes';
 import { Offerings } from './components/Offerings';
 import { Teachers } from './components/Teachers';
-import { CreditSummary } from './components/CreditSummary';
 import { CumulativeCredits } from './components/CumulativeCredits';
 import { Workload } from './components/Workload';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -51,7 +50,6 @@ export default function App() {
         {tab === 'classes' && <Classes api={api} />}
         {tab === 'offerings' && <Offerings api={api} />}
         {tab === 'teachers' && <Teachers api={api} />}
-        {tab === 'credits' && <CreditSummary api={api} />}
         {tab === 'cumulative' && <CumulativeCredits api={api} />}
         {tab === 'workload' && <Workload api={api} />}
         {tab === 'settings' && <SettingsPanel api={api} />}
