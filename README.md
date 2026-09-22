@@ -56,37 +56,46 @@ npm run test
 
 ---
 
-## นำขึ้นเว็บออนไลน์ให้ใช้จริง (Deploy ฟรีด้วย Vercel)
+## นำขึ้นใช้จริง (Render + Aiven — ข้อมูลกลาง แชร์ทุกเครื่อง)
 
-แอปนี้เป็นเว็บ static (ไม่มีเซิร์ฟเวอร์) จึงขึ้นเว็บฟรีได้ง่าย และ **อัปเดตอัตโนมัติทุกครั้งที่แก้โค้ด**
+ระบบมี 3 ส่วน: **Frontend** (เว็บ) + **Backend API** (โฟลเดอร์ `server/`) + **ฐานข้อมูล Aiven (PostgreSQL)**
+เมื่อ deploy แล้ว ทุกเครื่อง/ทุกคนจะเห็นข้อมูลชุดเดียวกัน และ **push โค้ด = อัปเดตอัตโนมัติ**
 
-### ตั้งครั้งแรก (ทำครั้งเดียว)
-1. สมัคร **GitHub** ที่ <https://github.com> และ **Vercel** ที่ <https://vercel.com> (ล็อกอิน Vercel ด้วยบัญชี GitHub ได้เลย — ฟรีทั้งคู่)
-2. สร้าง repository ใหม่บน GitHub เช่นชื่อ `course-planner` (เว้นว่าง ไม่ต้องติ๊กเพิ่มไฟล์ใด ๆ) แล้วคัดลอกลิงก์ที่ได้ (เช่น `https://github.com/ชื่อคุณ/course-planner.git`)
-3. เปิด Terminal ที่โฟลเดอร์ `course-planner` แล้วรัน (แทน `<ลิงก์ repo>` ด้วยลิงก์จากข้อ 2):
-   ```bash
-   git remote add origin <ลิงก์ repo>
-   git push -u origin main
-   ```
-   > โค้ดถูก commit ไว้ให้พร้อมแล้ว จึง push ได้ทันที
-4. ไปที่ Vercel → **Add New… → Project** → เลือก repo `course-planner` → Vercel จะตรวจเจอ Vite เองทั้งหมด → กด **Deploy**
-5. รอสักครู่จะได้ลิงก์เว็บ เช่น `https://course-planner-xxxx.vercel.app` — เปิดใช้งานได้เลยจากมือถือ/คอมเครื่องใด ๆ
+### 0) เตรียม
+- push โค้ดทั้งหมดขึ้น GitHub (repo เดียว)
+- ที่ Aiven: เปิด service **PostgreSQL** แล้วคัดลอก **Service URI** (ขึ้นต้น `postgres://...`)
 
-### อัปเดตครั้งต่อไป (แก้โค้ด/เพิ่มฟีเจอร์)
-รันในโฟลเดอร์ `course-planner`:
+### 1) Backend — Render **Web Service**
+- Render → New → **Web Service** → เลือก repo
+- **Root Directory:** `server`
+- **Build Command:** `npm install`
+- **Start Command:** `npm start`
+- **Environment Variables:**
+  - `DATABASE_URL` = Service URI ของ Aiven
+  - `API_TOKEN` = (ไม่บังคับ) ตั้งรหัสลับสัก 1 ค่า เพื่อกันคนนอกเรียก API
+- Deploy แล้วจะได้ลิงก์ เช่น `https://course-planner-api.onrender.com`
+- ทดสอบเปิด `<ลิงก์>/api/health` ต้องเห็น `{"ok":true}`
+
+### 2) Frontend — Render **Static Site**
+- Render → New → **Static Site** → เลือก repo เดิม
+- **Root Directory:** เว้นว่าง (ราก repo)
+- **Build Command:** `npm install && npm run build`
+- **Publish Directory:** `dist`
+- **Environment Variables:**
+  - `VITE_API_URL` = ลิงก์ backend จากข้อ 1
+  - `VITE_API_TOKEN` = ค่าเดียวกับ `API_TOKEN` (ถ้าตั้งไว้)
+- Deploy แล้วจะได้ลิงก์เว็บ — เปิดใช้ได้ทุกอุปกรณ์ ข้อมูลอ่าน/บันทึกที่ Aiven กลาง
+
+### อัปเดตครั้งต่อไป
 ```bash
-git add -A
-git commit -m "อธิบายสิ่งที่แก้"
-git push
+git add -A && git commit -m "อธิบายสิ่งที่แก้" && git push
 ```
-Vercel จะ build แล้วอัปเดตเว็บให้อัตโนมัติภายในไม่กี่นาที
+Render จะ build + อัปเดตทั้ง 2 service อัตโนมัติ (ข้อมูลในฐานข้อมูลไม่หาย)
 
-### สำคัญเรื่องข้อมูล
-- ข้อมูล (รายวิชา/ห้อง/ครู/หน่วยกิต) เก็บใน **เบราว์เซอร์ของเครื่องที่ใช้** — **อัปเดตโค้ดแล้วข้อมูลไม่หาย** (คนละส่วนกัน)
-- แต่ละเครื่อง/เบราว์เซอร์มีข้อมูลของตัวเอง ไม่แชร์กันอัตโนมัติ → ย้าย/สำรองด้วยปุ่ม **Export/Import JSON** (แท็บตั้งค่า)
-- ควร **Export สำรองเป็นระยะ** เพราะถ้าล้างข้อมูลเบราว์เซอร์ ข้อมูลจะหาย
-
-> อยากให้หลายคน/หลายเครื่องใช้ข้อมูลชุดเดียวกันแบบเรียลไทม์? ต้องเพิ่มฐานข้อมูลกลาง (backend) ซึ่งออกแบบไว้ให้ต่อยอดได้ (โค้ดแยกชั้น storage ไว้แล้ว)
+### หมายเหตุ
+- **ไม่ตั้ง `VITE_API_URL`** = แอปกลับไปใช้ **localStorage ในเครื่อง** (เหมาะกับ dev/ทดสอบ) — สลับโหมดได้โดยไม่ต้องแก้โค้ด
+- แนะนำกด **Export สำรอง JSON** เป็นระยะ (แท็บตั้งค่า) และตั้ง backup ที่ Aiven ด้วย
+- ถ้า Aiven ที่ใช้เป็น **MySQL** (ไม่ใช่ PostgreSQL) — โค้ด `server/` เขียนสำหรับ PostgreSQL แจ้งได้เพื่อปรับ driver
 
 ---
 

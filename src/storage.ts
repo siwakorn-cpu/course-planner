@@ -1,8 +1,10 @@
 // ============================================================
 // storage.ts — ชั้นจัดเก็บข้อมูล (persistence layer)
-// ตอนนี้ใช้ localStorage; ถ้าจะเปลี่ยนไปใช้ฐานข้อมูลภายหลัง
-// ให้แก้เฉพาะไฟล์นี้ (โครงส่วนอื่นเรียกผ่านฟังก์ชันเหล่านี้เท่านั้น)
+// รองรับ 2 โหมด (โครงส่วนอื่นเรียกผ่านฟังก์ชันเหล่านี้เท่านั้น):
+//   - ฐานข้อมูลกลาง (ตั้งค่า VITE_API_URL) → เรียก Backend API
+//   - ในเครื่อง (ไม่ตั้งค่า) → localStorage
 // ============================================================
+import { apiGetData, apiPutData, useRemote } from './api';
 import {
   type AppData,
   type ClassRoom,
@@ -107,33 +109,47 @@ export function initialData(): AppData {
   return seedData();
 }
 
-/** โหลดข้อมูลจากที่เก็บ; ถ้าไม่มี/พังให้คืนชุดตัวอย่าง */
-export function loadData(): AppData {
+/** ก้อนข้อมูลว่าง (ใช้เป็น placeholder ระหว่างกำลังโหลด) */
+export function emptyData(): AppData {
+  return normalize(undefined);
+}
+
+/**
+ * โหลดข้อมูล (async)
+ *  - โหมดฐานข้อมูลกลาง: ดึงจาก API; ถ้ายังไม่มีข้อมูล → สร้างชุดตัวอย่างแล้วบันทึกขึ้นเซิร์ฟเวอร์
+ *  - โหมดในเครื่อง: อ่านจาก localStorage; ถ้าไม่มี/พัง → ชุดตัวอย่าง
+ */
+export async function loadData(): Promise<AppData> {
+  if (useRemote) {
+    const raw = await apiGetData();
+    if (!raw) {
+      const seed = initialData();
+      await apiPutData(seed);
+      return seed;
+    }
+    return normalize(raw);
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return initialData();
-    const parsed = JSON.parse(raw) as Partial<AppData>;
-    return normalize(parsed);
+    return normalize(JSON.parse(raw) as Partial<AppData>);
   } catch (err) {
     console.warn('โหลดข้อมูลไม่สำเร็จ ใช้ข้อมูลตัวอย่างแทน', err);
     return initialData();
   }
 }
 
-/** บันทึกข้อมูลลงที่เก็บ */
-export function saveData(data: AppData): void {
+/** บันทึกข้อมูล (async) — ฐานข้อมูลกลางหรือ localStorage ตามโหมด */
+export async function saveData(data: AppData): Promise<void> {
+  if (useRemote) {
+    await apiPutData(data);
+    return;
+  }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (err) {
     console.error('บันทึกข้อมูลไม่สำเร็จ', err);
   }
-}
-
-/** ล้างข้อมูลทั้งหมด แล้วเริ่มใหม่ด้วยชุดตัวอย่าง */
-export function resetData(): AppData {
-  const fresh = initialData();
-  saveData(fresh);
-  return fresh;
 }
 
 // ---------- Export / Import เป็นไฟล์ JSON ----------

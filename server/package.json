@@ -1,0 +1,16 @@
+{
+  "name": "course-planner-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Backend API สำหรับระบบจัดรายวิชานักเรียน (เก็บข้อมูลกลางบน PostgreSQL/Aiven)",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}

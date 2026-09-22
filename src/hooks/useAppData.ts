@@ -5,7 +5,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppData, ClassRoom, CompletedCourse, Level, Offering, Settings, Subject, Teacher } from '../types';
 import { gradeToLevel } from '../types';
-import { loadData, resetData, saveData } from '../storage';
+import { emptyData, loadData, saveData } from '../storage';
+import { seedData } from '../seedData';
 import { promoteAllData } from '../promote';
 
 /** id สุ่มแบบสั้น สำหรับข้อมูลที่ผู้ใช้เพิ่มเอง */
@@ -15,6 +16,8 @@ export function newId(prefix: string): string {
 
 export interface AppDataApi {
   data: AppData;
+  loading: boolean; // กำลังโหลดข้อมูลครั้งแรก
+  error: string | null; // ข้อผิดพลาดตอนโหลด (เช่น ต่อเซิร์ฟเวอร์ไม่ได้)
   // รายวิชา
   addSubject: (s: Omit<Subject, 'id'>) => void;
   updateSubject: (s: Subject) => void;
@@ -57,16 +60,45 @@ export interface AppDataApi {
 }
 
 export function useAppData(): AppDataApi {
-  const [data, setData] = useState<AppData>(() => loadData());
+  const [data, setData] = useState<AppData>(() => emptyData()); // placeholder ระหว่างโหลด
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // อ้างอิงข้อมูลล่าสุด (ใช้ในการทำงานที่ต้องอ่านค่าปัจจุบันแล้วคืนผลทันที เช่น เลื่อนชั้น)
   const dataRef = useRef(data);
   dataRef.current = data;
 
-  // บันทึกทุกครั้งที่ข้อมูลเปลี่ยน
+  // โหลดข้อมูลครั้งแรก (localStorage หรือฐานข้อมูลกลาง)
   useEffect(() => {
-    saveData(data);
-  }, [data]);
+    let alive = true;
+    loadData()
+      .then((d) => {
+        if (!alive) return;
+        setData(d);
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setError(e instanceof Error ? e.message : 'โหลดข้อมูลไม่สำเร็จ');
+        setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // บันทึกเมื่อข้อมูลเปลี่ยน (หน่วงเล็กน้อยกันบันทึกถี่เกินไป โดยเฉพาะโหมดฐานข้อมูลกลาง)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    if (loading) return; // ยังไม่โหลดเสร็จ อย่าเพิ่งบันทึกทับ
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveData(data).catch((e) => console.error('บันทึกข้อมูลไม่สำเร็จ', e));
+    }, 600);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [data, loading]);
 
   const addSubject = useCallback((s: Omit<Subject, 'id'>) => {
     setData((d) => ({ ...d, subjects: [...d.subjects, { ...s, id: newId('subj') }] }));
@@ -271,10 +303,12 @@ export function useAppData(): AppDataApi {
 
   const replaceAll = useCallback((d: AppData) => setData(d), []);
 
-  const resetAll = useCallback(() => setData(resetData()), []);
+  const resetAll = useCallback(() => setData(seedData()), []);
 
   return {
     data,
+    loading,
+    error,
     addSubject,
     updateSubject,
     removeSubject,

@@ -29,9 +29,22 @@ export default function App() {
             {theme === 'dark' ? '☀️ สว่าง' : '🌙 มืด'}
           </button>
         </div>
-        <TabNav active={tab} onChange={setTab} />
+        {!api.loading && !api.error && <TabNav active={tab} onChange={setTab} />}
       </header>
 
+      {api.loading ? (
+        <main className="app-main">
+          <div className="empty">⏳ กำลังโหลดข้อมูล…</div>
+        </main>
+      ) : api.error ? (
+        <main className="app-main">
+          <div className="card" style={{ borderColor: 'var(--danger)' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--danger)' }}>เชื่อมต่อฐานข้อมูลไม่สำเร็จ</h3>
+            <p className="muted">{api.error}</p>
+            <p className="muted" style={{ marginBottom: 0 }}>ตรวจสอบว่าเซิร์ฟเวอร์ (Backend) ทำงานอยู่ และตั้งค่า VITE_API_URL ถูกต้อง แล้วลองรีเฟรชหน้าอีกครั้ง</p>
+          </div>
+        </main>
+      ) : (
       <main className="app-main">
         {tab === 'dashboard' && <Dashboard api={api} goto={setTab} />}
         {tab === 'subjects' && <Subjects api={api} />}
@@ -43,6 +56,7 @@ export default function App() {
         {tab === 'workload' && <Workload api={api} />}
         {tab === 'settings' && <SettingsPanel api={api} />}
       </main>
+      )}
     </div>
   );
 }
