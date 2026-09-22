@@ -42,8 +42,8 @@ export function Teachers({ api }: Props) {
   };
 
   const loadByTeacher = useMemo(
-    () => teacherWorkloadTotals(data.offerings, data.subjects, data.teachers, filter),
-    [data.offerings, data.subjects, data.teachers, filter],
+    () => teacherWorkloadTotals(data.offerings, data.subjects, data.teachers, filter, data.coupledGroups),
+    [data.offerings, data.subjects, data.teachers, data.coupledGroups, filter],
   );
   const loadOf = (id: string) => loadByTeacher.find((r) => r.teacherId === id);
   const unassigned = loadByTeacher.find((r) => r.teacherId === null);

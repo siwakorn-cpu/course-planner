@@ -228,6 +228,36 @@ describe('ภาระงาน & อัตรากำลังของกล�
   });
 });
 
+describe('การนับคาบห้องควบ', () => {
+  const sameSubjectOfferings: Offering[] = [
+    { id: 'joint-1', classId: 'c1', subjectId: 's1', semester: 1, teacherId: 't1' },
+    { id: 'joint-2', classId: 'c2', subjectId: 's1', semester: 1, teacherId: 't1' },
+  ];
+  const coupled = [{ id: 'cg1', name: 'ห้องควบ', classIds: ['c1', 'c2'], jointSubjectIds: ['s1'] }];
+
+  it('วิชาเรียนรวมกันของครูคนเดียวนับเพียงหนึ่งชุดคาบ', () => {
+    const load = workloadByArea(sameSubjectOfferings, subjects, settings, 1, coupled);
+    const math = load.find((x) => x.area === 'คณิตศาสตร์')!;
+    expect(math.periods).toBe(3);
+    expect(math.offeringsCount).toBe(1);
+    expect(totalPeriods(sameSubjectOfferings, subjects, 1, coupled)).toBe(3);
+  });
+
+  it('วิชาที่ไม่ได้ตั้งเป็นเรียนรวมยังนับแยกห้อง', () => {
+    expect(totalPeriods(sameSubjectOfferings, subjects, 1, [])).toBe(6);
+  });
+
+  it('ครูคนละคนจะไม่ถูกรวมคาบเข้าด้วยกัน', () => {
+    const splitTeachers: Offering[] = [sameSubjectOfferings[0], { ...sameSubjectOfferings[1], teacherId: 't2' }];
+    expect(totalPeriods(splitTeachers, subjects, 1, coupled)).toBe(6);
+  });
+
+  it('ภาระงานรายครูของห้องควบนับคาบครั้งเดียว', () => {
+    const rows = teacherWorkloadTotals(sameSubjectOfferings, subjects, [{ id: 't1', name: 'ครูก' }], 1, coupled);
+    expect(rows.find((x) => x.teacherId === 't1')).toMatchObject({ periods: 3, offeringsCount: 1 });
+  });
+});
+
 describe('ภาระงานรายครู', () => {
   const teachers: Teacher[] = [
     { id: 't1', name: 'ครูคณิต ก', area: 'คณิตศาสตร์' },

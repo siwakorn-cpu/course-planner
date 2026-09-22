@@ -3,7 +3,7 @@
 // ทุกหน้าจอเรียกใช้ผ่าน hook นี้ เพื่อให้ข้อมูลชุดเดียวกันทั้งแอป
 // ============================================================
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppData, ClassRoom, CompletedCourse, Level, Offering, Settings, Subject, Teacher } from '../types';
+import type { AppData, ClassRoom, CompletedCourse, CoupledClassGroup, Level, Offering, Settings, Subject, Teacher } from '../types';
 import { gradeToLevel } from '../types';
 import { emptyData, loadData, saveData } from '../storage';
 import { promoteAllData } from '../promote';
@@ -43,6 +43,10 @@ export interface AppDataApi {
   addOffering: (o: Omit<Offering, 'id'>) => void;
   updateOffering: (o: Offering) => void;
   removeOffering: (id: string) => void;
+  // กลุ่มห้องควบ
+  addCoupledGroup: (g: Omit<CoupledClassGroup, 'id'>) => void;
+  updateCoupledGroup: (g: CoupledClassGroup) => void;
+  removeCoupledGroup: (id: string) => void;
   // ครูผู้สอน
   addTeacher: (t: Omit<Teacher, 'id'>) => void;
   updateTeacher: (t: Teacher) => void;
@@ -115,6 +119,7 @@ export function useAppData(): AppDataApi {
       subjects: d.subjects.filter((x) => x.id !== id),
       // ลบการจัดสอนที่อ้างถึงวิชานี้ด้วย เพื่อไม่ให้ข้อมูลค้าง
       offerings: d.offerings.filter((o) => o.subjectId !== id),
+      coupledGroups: d.coupledGroups.map((g) => ({ ...g, jointSubjectIds: g.jointSubjectIds.filter((x) => x !== id) })),
     }));
   }, []);
 
@@ -154,6 +159,9 @@ export function useAppData(): AppDataApi {
       classes: d.classes.filter((x) => x.id !== id),
       offerings: d.offerings.filter((o) => o.classId !== id),
       completed: d.completed.filter((c) => c.classId !== id),
+      coupledGroups: d.coupledGroups
+        .map((g) => ({ ...g, classIds: g.classIds.filter((x) => x !== id) }))
+        .filter((g) => g.classIds.length >= 2),
     }));
   }, []);
 
@@ -199,6 +207,9 @@ export function useAppData(): AppDataApi {
       classes: d.classes.filter((c) => !set.has(c.id)),
       offerings: d.offerings.filter((o) => !set.has(o.classId)),
       completed: d.completed.filter((c) => !set.has(c.classId)),
+      coupledGroups: d.coupledGroups
+        .map((g) => ({ ...g, classIds: g.classIds.filter((id) => !set.has(id)) }))
+        .filter((g) => g.classIds.length >= 2),
     }));
   }, []);
 
@@ -241,6 +252,18 @@ export function useAppData(): AppDataApi {
 
   const removeOffering = useCallback((id: string) => {
     setData((d) => ({ ...d, offerings: d.offerings.filter((x) => x.id !== id) }));
+  }, []);
+
+  const addCoupledGroup = useCallback((g: Omit<CoupledClassGroup, 'id'>) => {
+    setData((d) => ({ ...d, coupledGroups: [...d.coupledGroups, { ...g, id: newId('coupled') }] }));
+  }, []);
+
+  const updateCoupledGroup = useCallback((g: CoupledClassGroup) => {
+    setData((d) => ({ ...d, coupledGroups: d.coupledGroups.map((x) => (x.id === g.id ? g : x)) }));
+  }, []);
+
+  const removeCoupledGroup = useCallback((id: string) => {
+    setData((d) => ({ ...d, coupledGroups: d.coupledGroups.filter((x) => x.id !== id) }));
   }, []);
 
   const addTeacher = useCallback((t: Omit<Teacher, 'id'>) => {
@@ -327,6 +350,9 @@ export function useAppData(): AppDataApi {
     addOffering,
     updateOffering,
     removeOffering,
+    addCoupledGroup,
+    updateCoupledGroup,
+    removeCoupledGroup,
     addTeacher,
     updateTeacher,
     removeTeacher,

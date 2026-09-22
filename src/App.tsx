@@ -5,6 +5,7 @@ import { TabNav, type TabId } from './components/TabNav';
 import { Dashboard } from './components/Dashboard';
 import { Subjects } from './components/Subjects';
 import { Classes } from './components/Classes';
+import { CoupledClasses } from './components/CoupledClasses';
 import { Offerings } from './components/Offerings';
 import { Teachers } from './components/Teachers';
 import { CumulativeCredits } from './components/CumulativeCredits';
@@ -48,6 +49,7 @@ export default function App() {
         {tab === 'dashboard' && <Dashboard api={api} goto={setTab} />}
         {tab === 'subjects' && <Subjects api={api} />}
         {tab === 'classes' && <Classes api={api} />}
+        {tab === 'coupled' && <CoupledClasses api={api} />}
         {tab === 'offerings' && <Offerings api={api} />}
         {tab === 'teachers' && <Teachers api={api} />}
         {tab === 'cumulative' && <CumulativeCredits api={api} />}

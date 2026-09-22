@@ -5,6 +5,7 @@
 import {
   type AppData,
   type ClassRoom,
+  type CoupledClassGroup,
   DATA_VERSION,
   DEFAULT_GROUPS,
   DEFAULT_PLANS,
@@ -132,6 +133,7 @@ function buildOfferings(
   };
 
   const m11 = classes.find((c) => c.grade === 'ม.1' && c.section === '1')!;
+  const m12 = classes.find((c) => c.grade === 'ม.1' && c.section === '2')!;
   const m41 = classes.find((c) => c.grade === 'ม.4' && c.section === '1')!;
   const m567 = classes.find((c) => c.grade === 'ม.5' && c.section === '5,6,7')!;
 
@@ -150,6 +152,13 @@ function buildOfferings(
   add(m11, 'อ21101', 1, 'อังกฤษ');
   add(m11, 'อ21201', 1, 'อังกฤษ');
   add(m11, 'ก21901', 1, 'กิจกรรม');
+
+  // ม.1/2 มีบางวิชาเรียนรวมกับ ม.1/1 และบางวิชาเรียนแยกกัน
+  add(m12, 'ท21101', 1, 'ไทย');
+  add(m12, 'ค21101', 1, 'คณิต');
+  add(m12, 'ว21101', 1, 'วิทย์');
+  add(m12, 'อ21101', 1, 'อังกฤษ');
+  add(m12, 'ก21901', 1, 'กิจกรรม');
 
   // ม.4/1 (วิทย์-คณิต) ภาคเรียนที่ 1
   add(m41, 'ท31101', 1, 'ไทย');
@@ -188,6 +197,20 @@ function buildOfferings(
   return offerings;
 }
 
+function buildCoupledGroups(subjects: Subject[], classes: ClassRoom[]): CoupledClassGroup[] {
+  const m11 = classes.find((c) => c.grade === 'ม.1' && c.section === '1');
+  const m12 = classes.find((c) => c.grade === 'ม.1' && c.section === '2');
+  const byCode = new Map(subjects.map((s) => [s.code, s.id]));
+  if (!m11 || !m12) return [];
+  return [{
+    id: id('coupled'),
+    name: 'ห้องควบ ม.1/1-2',
+    classIds: [m11.id, m12.id],
+    // ภาษาไทย วิทยาศาสตร์ และแนะแนวเรียนรวม; คณิตศาสตร์/อังกฤษยังนับแยกห้อง
+    jointSubjectIds: ['ท21101', 'ว21101', 'ก21901'].map((code) => byCode.get(code)).filter((x): x is string => !!x),
+  }];
+}
+
 /** หน่วยกิตเดิม (วิชา ม.4 ที่เรียนจบแล้ว) ของห้องรวม ม.5/5,6,7 เพื่อโชว์หน่วยกิตสะสม */
 function buildCompleted(classes: ClassRoom[]): AppData['completed'] {
   const m567 = classes.find((c) => c.grade === 'ม.5' && c.section === '5,6,7');
@@ -220,11 +243,13 @@ export function seedData(): AppData {
   const teacherMap = buildTeachers();
   const classes = buildClasses();
   const offerings = buildOfferings(subjects, classes, teacherMap);
+  const coupledGroups = buildCoupledGroups(subjects, classes);
   return {
     version: DATA_VERSION,
     subjects,
     classes,
     offerings,
+    coupledGroups,
     teachers: Object.values(teacherMap),
     completed: buildCompleted(classes),
     graduated: [],

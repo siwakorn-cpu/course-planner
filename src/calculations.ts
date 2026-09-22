@@ -8,6 +8,7 @@ import {
   type Area,
   type ClassRoom,
   type CompletedCourse,
+  type CoupledClassGroup,
   type CreditRecord,
   type Level,
   type Offering,
@@ -314,6 +315,69 @@ export interface AreaWorkload {
   teachersRounded: number; // ปัดขึ้นเป็นจำนวนคน
 }
 
+/** หนึ่งชุดคาบสอนจริง; ห้องควบที่เรียนรวมจะมี classIds หลายห้อง */
+export interface TeachingUnit {
+  id: string;
+  offeringIds: string[];
+  classIds: string[];
+  subject: Subject;
+  semester: Semester;
+  teacherId?: string;
+  group?: string;
+  periods: number;
+  coupledGroupId?: string;
+}
+
+/**
+ * รวม Offering ที่เป็นการสอนครั้งเดียวกันของห้องควบ
+ * จะรวมเฉพาะเมื่อกลุ่มห้อง รายวิชา ภาคเรียน ครู และกลุ่มเลือกตรงกัน
+ */
+export function teachingUnits(
+  offerings: Offering[],
+  subjects: Subject[],
+  coupledGroups: CoupledClassGroup[] = [],
+  filter: SemesterFilter = 'ปี',
+): TeachingUnit[] {
+  const sMap = subjectMap(subjects);
+  const coupledLookup = new Map<string, CoupledClassGroup>();
+  for (const cg of coupledGroups) {
+    for (const classId of cg.classIds) {
+      for (const subjectId of cg.jointSubjectIds) coupledLookup.set(`${classId}::${subjectId}`, cg);
+    }
+  }
+
+  const units = new Map<string, TeachingUnit>();
+  for (const off of offerings) {
+    if (!inSemester(off, filter)) continue;
+    const subject = sMap.get(off.subjectId);
+    if (!subject) continue;
+    const coupled = coupledLookup.get(`${off.classId}::${off.subjectId}`);
+    const key = coupled
+      ? `coupled:${coupled.id}:${off.subjectId}:${off.semester}:${off.teacherId ?? '__none__'}:${off.group?.trim() ?? ''}`
+      : `offering:${off.id}`;
+    const existing = units.get(key);
+    const periods = offeringPeriods(off, subject);
+    if (existing) {
+      if (!existing.classIds.includes(off.classId)) existing.classIds.push(off.classId);
+      existing.offeringIds.push(off.id);
+      existing.periods = Math.max(existing.periods, periods);
+    } else {
+      units.set(key, {
+        id: key,
+        offeringIds: [off.id],
+        classIds: [off.classId],
+        subject,
+        semester: off.semester,
+        teacherId: off.teacherId,
+        group: off.group,
+        periods,
+        coupledGroupId: coupled?.id,
+      });
+    }
+  }
+  return [...units.values()];
+}
+
 /**
  * สรุปคาบสอนรวมของแต่ละกลุ่มสาระ + ครูที่ต้องใช้โดยประมาณ
  * @param filter 1 | 2 | 'ปี' (ทั้งปี = รวมทั้งสองภาคเรียน)
@@ -323,17 +387,14 @@ export function workloadByArea(
   subjects: Subject[],
   settings: Settings,
   filter: SemesterFilter = 'ปี',
+  coupledGroups: CoupledClassGroup[] = [],
 ): AreaWorkload[] {
-  const sMap = subjectMap(subjects);
   const acc = new Map<Area, { periods: number; count: number }>();
   for (const area of AREAS) acc.set(area, { periods: 0, count: 0 });
 
-  for (const off of offerings) {
-    if (!inSemester(off, filter)) continue;
-    const subj = sMap.get(off.subjectId);
-    if (!subj) continue;
-    const bucket = acc.get(subj.area)!;
-    bucket.periods += offeringPeriods(off, subj);
+  for (const unit of teachingUnits(offerings, subjects, coupledGroups, filter)) {
+    const bucket = acc.get(unit.subject.area)!;
+    bucket.periods += unit.periods;
     bucket.count += 1;
   }
 
@@ -355,16 +416,9 @@ export function totalPeriods(
   offerings: Offering[],
   subjects: Subject[],
   filter: SemesterFilter = 'ปี',
+  coupledGroups: CoupledClassGroup[] = [],
 ): number {
-  const sMap = subjectMap(subjects);
-  let sum = 0;
-  for (const off of offerings) {
-    if (!inSemester(off, filter)) continue;
-    const subj = sMap.get(off.subjectId);
-    if (!subj) continue;
-    sum += offeringPeriods(off, subj);
-  }
-  return sum;
+  return teachingUnits(offerings, subjects, coupledGroups, filter).reduce((sum, unit) => sum + unit.periods, 0);
 }
 
 /** ครูที่ต้องใช้ทั้งโรงเรียนโดยประมาณ (ปัดขึ้น) */
@@ -373,9 +427,10 @@ export function totalTeachersNeeded(
   subjects: Subject[],
   settings: Settings,
   filter: SemesterFilter = 'ปี',
+  coupledGroups: CoupledClassGroup[] = [],
 ): number {
   const load = settings.teacherLoad > 0 ? settings.teacherLoad : 1;
-  return Math.ceil(totalPeriods(offerings, subjects, filter) / load);
+  return Math.ceil(totalPeriods(offerings, subjects, filter, coupledGroups) / load);
 }
 
 // ---------- ตัวช่วยเกี่ยวกับห้อง ----------
@@ -424,18 +479,16 @@ export function teacherWorkloadInArea(
   subjects: Subject[],
   teachers: Teacher[],
   filter: SemesterFilter = 'ปี',
+  coupledGroups: CoupledClassGroup[] = [],
 ): TeacherWorkload[] {
-  const sMap = subjectMap(subjects);
   const tMap = teacherMap(teachers);
   const acc = new Map<string, { periods: number; count: number }>();
 
-  for (const off of offerings) {
-    if (!inSemester(off, filter)) continue;
-    const subj = sMap.get(off.subjectId);
-    if (!subj || subj.area !== area) continue;
-    const key = off.teacherId ?? '__none__';
+  for (const unit of teachingUnits(offerings, subjects, coupledGroups, filter)) {
+    if (unit.subject.area !== area) continue;
+    const key = unit.teacherId ?? '__none__';
     const b = acc.get(key) ?? { periods: 0, count: 0 };
-    b.periods += offeringPeriods(off, subj);
+    b.periods += unit.periods;
     b.count += 1;
     acc.set(key, b);
   }
@@ -467,23 +520,19 @@ export function teacherWorkloadTotals(
   subjects: Subject[],
   teachers: Teacher[],
   filter: SemesterFilter = 'ปี',
+  coupledGroups: CoupledClassGroup[] = [],
 ): TeacherWorkload[] {
-  const sMap = subjectMap(subjects);
   const acc = new Map<string, { periods: number; count: number }>();
   teachers.forEach((t) => acc.set(t.id, { periods: 0, count: 0 }));
   let none = { periods: 0, count: 0 };
 
-  for (const off of offerings) {
-    if (!inSemester(off, filter)) continue;
-    const subj = sMap.get(off.subjectId);
-    if (!subj) continue;
-    const p = offeringPeriods(off, subj);
-    if (off.teacherId && acc.has(off.teacherId)) {
-      const b = acc.get(off.teacherId)!;
-      b.periods += p;
+  for (const unit of teachingUnits(offerings, subjects, coupledGroups, filter)) {
+    if (unit.teacherId && acc.has(unit.teacherId)) {
+      const b = acc.get(unit.teacherId)!;
+      b.periods += unit.periods;
       b.count += 1;
     } else {
-      none = { periods: none.periods + p, count: none.count + 1 };
+      none = { periods: none.periods + unit.periods, count: none.count + 1 };
     }
   }
 

@@ -13,8 +13,8 @@ interface Props {
 export function Dashboard({ api, goto }: Props) {
   const { data } = api;
 
-  const periodsYear = useMemo(() => totalPeriods(data.offerings, data.subjects, 'ปี'), [data]);
-  const workload = useMemo(() => workloadByArea(data.offerings, data.subjects, data.settings, 'ปี'), [data]);
+  const periodsYear = useMemo(() => totalPeriods(data.offerings, data.subjects, 'ปี', data.coupledGroups), [data]);
+  const workload = useMemo(() => workloadByArea(data.offerings, data.subjects, data.settings, 'ปี', data.coupledGroups), [data]);
   // ครูที่ต้องใช้ = ผลรวมความต้องการของแต่ละกลุ่มสาระ (ปัดขึ้นรายกลุ่ม)
   // ให้ตรงกับหน้า "ภาระงาน & อัตรากำลัง" เพราะครูสังกัดกลุ่มสาระ แชร์ข้ามกลุ่มไม่ได้
   const teachers = useMemo(() => workload.reduce((sum, w) => sum + w.teachersRounded, 0), [workload]);

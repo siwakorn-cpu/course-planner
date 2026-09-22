@@ -78,6 +78,14 @@ export interface Offering {
   group?: string; // กลุ่มเลือกภายในห้อง (ว่าง = ทั้งห้องเรียนร่วมกัน; มีค่า = เฉพาะกลุ่มนั้น เช่น "ภาษาจีน")
 }
 
+/** กลุ่มห้องควบ: ระบุห้องที่จับกลุ่ม และวิชาที่เรียนรวมกันจริง */
+export interface CoupledClassGroup {
+  id: string;
+  name: string;
+  classIds: string[];
+  jointSubjectIds: string[];
+}
+
 /** เกณฑ์หน่วยกิตการจบของแต่ละระดับ (แก้ไขได้ในแอป) */
 export interface LevelRequirement {
   basic: number; // หน่วยกิตพื้นฐานที่ต้องมี
@@ -129,6 +137,7 @@ export interface AppData {
   subjects: Subject[];
   classes: ClassRoom[];
   offerings: Offering[];
+  coupledGroups: CoupledClassGroup[];
   teachers: Teacher[];
   completed: CompletedCourse[]; // วิชาที่เรียนจบแล้ว (หน่วยกิตสะสมเดิม) รายห้อง
   graduated: GraduatedClass[]; // ทำเนียบจบการศึกษา
@@ -138,7 +147,7 @@ export interface AppData {
 }
 
 /** เวอร์ชันสคีมาข้อมูล — เพิ่มเลขนี้เมื่อโครงสร้างเปลี่ยน */
-export const DATA_VERSION = 5;
+export const DATA_VERSION = 6;
 
 /** แผนการเรียนตั้งต้น (ม.ปลาย) — แก้ไข/เพิ่ม/ลบได้ในแอป */
 export const DEFAULT_PLANS = ['วิทย์-คณิต', 'ศิลป์-คำนวณ', 'ศิลป์-ภาษา', 'ศิลป์-ทั่วไป'];

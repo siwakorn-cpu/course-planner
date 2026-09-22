@@ -21,6 +21,7 @@ function baseData(): AppData {
       { id: 'o2', classId: 'c1', subjectId: 's2', semester: 1, group: 'จีน' },
       { id: 'o3', classId: 'c3', subjectId: 's1', semester: 1 },
     ],
+    coupledGroups: [],
     teachers: [],
     completed: [
       { id: 'd1', classId: 'c3', code: 'ท', name: 'ไทยเดิม', credits: 2, type: 'พื้นฐาน' },

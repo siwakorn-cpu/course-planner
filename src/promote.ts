@@ -7,6 +7,7 @@
 // ============================================================
 import {
   type AppData,
+  type ClassRoom,
   type CompletedCourse,
   type CreditRecord,
   type Grade,
@@ -47,7 +48,7 @@ export function promoteAllData(data: AppData): PromoteResult {
     code: c.code, name: c.name, credits: c.credits, type: c.type, group: c.group, note: c.note,
   });
 
-  const classes = [];
+  const classes: ClassRoom[] = [];
   const completed: CompletedCourse[] = [];
   const graduated: GraduatedClass[] = [...data.graduated];
   let promotedCount = 0;
@@ -84,7 +85,16 @@ export function promoteAllData(data: AppData): PromoteResult {
   }
 
   return {
-    data: { ...data, classes, completed, offerings: [], graduated },
+    data: {
+      ...data,
+      classes,
+      completed,
+      offerings: [],
+      graduated,
+      coupledGroups: data.coupledGroups
+        .map((g) => ({ ...g, classIds: g.classIds.filter((id) => classes.some((c) => c.id === id)) }))
+        .filter((g) => g.classIds.length >= 2),
+    },
     promotedCount,
     graduatedCount,
   };

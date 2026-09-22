@@ -5,10 +5,9 @@ import { type Area } from '../types';
 import {
   type SemesterFilter,
   classLabel,
-  offeringPeriods,
-  subjectMap,
   teacherMap,
   teacherName,
+  teachingUnits,
   teacherWorkloadInArea,
   workloadByArea,
 } from '../calculations';
@@ -24,19 +23,18 @@ export function Workload({ api }: Props) {
   const [filter, setFilter] = useState<SemesterFilter>('ปี');
   const [openArea, setOpenArea] = useState<Area | null>(null);
 
-  const sMap = useMemo(() => subjectMap(data.subjects), [data.subjects]);
   const tMap = useMemo(() => teacherMap(data.teachers), [data.teachers]);
   const classMap = useMemo(() => new Map(data.classes.map((c) => [c.id, c])), [data.classes]);
 
   // ภาระงานรายครูในกลุ่มสาระที่กางดู
   const teacherRows = useMemo(
-    () => (openArea ? teacherWorkloadInArea(openArea, data.offerings, data.subjects, data.teachers, filter) : []),
-    [openArea, data.offerings, data.subjects, data.teachers, filter],
+    () => (openArea ? teacherWorkloadInArea(openArea, data.offerings, data.subjects, data.teachers, filter, data.coupledGroups) : []),
+    [openArea, data.offerings, data.subjects, data.teachers, data.coupledGroups, filter],
   );
 
   const workload = useMemo(
-    () => workloadByArea(data.offerings, data.subjects, data.settings, filter),
-    [data.offerings, data.subjects, data.settings, filter],
+    () => workloadByArea(data.offerings, data.subjects, data.settings, filter, data.coupledGroups),
+    [data.offerings, data.subjects, data.settings, data.coupledGroups, filter],
   );
 
   const totals = workload.reduce(
@@ -51,26 +49,26 @@ export function Workload({ api }: Props) {
   // รายการ offering ในกลุ่มสาระที่กางดู
   const detail = useMemo(() => {
     if (!openArea) return [];
-    return data.offerings
-      .filter((o) => {
-        if (filter !== 'ปี' && o.semester !== filter) return false;
-        return sMap.get(o.subjectId)?.area === openArea;
-      })
-      .map((o) => {
-        const s = sMap.get(o.subjectId)!;
-        const c = classMap.get(o.classId);
+    return teachingUnits(data.offerings, data.subjects, data.coupledGroups, filter)
+      .filter((unit) => unit.subject.area === openArea)
+      .map((unit) => {
+        const classNames = unit.classIds.map((id) => {
+          const c = classMap.get(id);
+          return c ? classLabel(c, true) : '(ไม่พบห้อง)';
+        });
         return {
-          id: o.id,
-          code: s.code,
-          name: s.name,
-          className: c ? classLabel(c, true) : '(ไม่พบห้อง)',
-          semester: o.semester,
-          periods: offeringPeriods(o, s),
-          teacher: o.teacherId ? teacherName(tMap, o.teacherId) : '—',
+          id: unit.id,
+          code: unit.subject.code,
+          name: unit.subject.name,
+          className: classNames.join(' + '),
+          isCoupled: unit.classIds.length > 1,
+          semester: unit.semester,
+          periods: unit.periods,
+          teacher: unit.teacherId ? teacherName(tMap, unit.teacherId) : '—',
         };
       })
       .sort((a, b) => a.className.localeCompare(b.className, 'th'));
-  }, [openArea, data.offerings, sMap, classMap, tMap, filter]);
+  }, [openArea, data.offerings, data.subjects, data.coupledGroups, classMap, tMap, filter]);
 
   const exportCsv = () => {
     const headers = ['กลุ่มสาระ', 'จำนวนวิชาที่จัด', 'คาบรวม/สัปดาห์', 'ครูที่ต้องใช้ (ปัดขึ้น)', 'ครูที่ต้องใช้ (ทศนิยม)'];
@@ -206,7 +204,7 @@ export function Workload({ api }: Props) {
                     <tr key={d.id}>
                       <td>{d.code}</td>
                       <td>{d.name}</td>
-                      <td>{d.className}</td>
+                      <td>{d.className}{d.isCoupled && <span className="badge ok" style={{ marginLeft: '0.35rem' }}>ห้องควบ</span>}</td>
                       <td className="num">{d.semester}</td>
                       <td className="num">{d.periods}</td>
                       <td>{d.teacher}</td>

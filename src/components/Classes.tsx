@@ -228,15 +228,15 @@ export function Classes({ api }: Props) {
       ) : (
         <div className="class-level-columns">
           <section className="class-level-column">
-            <h3 className="class-level-title"><span>ม.ปลาย</span><span>{upperClasses.length} ห้อง</span></h3>
-            <div className="class-level-list">
-              {upperClasses.length > 0 ? upperClasses.map(renderClassCard) : <div className="empty class-level-empty">ยังไม่มีห้อง ม.ปลาย</div>}
-            </div>
-          </section>
-          <section className="class-level-column">
             <h3 className="class-level-title"><span>ม.ต้น</span><span>{lowerClasses.length} ห้อง</span></h3>
             <div className="class-level-list">
               {lowerClasses.length > 0 ? lowerClasses.map(renderClassCard) : <div className="empty class-level-empty">ยังไม่มีห้อง ม.ต้น</div>}
+            </div>
+          </section>
+          <section className="class-level-column">
+            <h3 className="class-level-title"><span>ม.ปลาย</span><span>{upperClasses.length} ห้อง</span></h3>
+            <div className="class-level-list">
+              {upperClasses.length > 0 ? upperClasses.map(renderClassCard) : <div className="empty class-level-empty">ยังไม่มีห้อง ม.ปลาย</div>}
             </div>
           </section>
         </div>

@@ -94,6 +94,11 @@ export function normalize(raw: Partial<AppData> | undefined): AppData {
     subjects: raw?.subjects ?? [],
     classes,
     offerings,
+    coupledGroups: (raw?.coupledGroups ?? []).map((g) => ({
+      ...g,
+      classIds: [...new Set(g.classIds ?? [])],
+      jointSubjectIds: [...new Set(g.jointSubjectIds ?? [])],
+    })),
     teachers,
     completed: raw?.completed ?? [],
     graduated: raw?.graduated ?? [],
