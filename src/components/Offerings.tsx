@@ -177,13 +177,6 @@ function AssignByClass({ api }: Props) {
   const tMap = useMemo(() => teacherMap(data.teachers), [data.teachers]);
   const currentClass = data.classes.find((c) => c.id === classId);
 
-  // แนะนำครูอัตโนมัติจากกลุ่มสาระของวิชา (คนแรกที่กลุ่มสาระตรงกัน)
-  const suggestTeacher = (subjectId: string): string | undefined => {
-    const subj = sMap.get(subjectId);
-    if (!subj) return undefined;
-    return data.teachers.find((t) => t.area === subj.area)?.id;
-  };
-
   const rows = useMemo(() => data.offerings
     .filter((o) => o.classId === classId && o.semester === semester)
     .sort((a, b) => {
@@ -247,7 +240,7 @@ function AssignByClass({ api }: Props) {
       subjectId: first?.id ?? '',
       periods: undefined,
       room: '',
-      teacherId: first ? suggestTeacher(first.id) : undefined,
+      teacherId: undefined,
       group: '',
     });
   };
@@ -460,7 +453,6 @@ function AssignByClass({ api }: Props) {
                     setDraft({
                       ...draft,
                       subjectId: first?.id ?? '',
-                      teacherId: first ? suggestTeacher(first.id) : undefined,
                     });
                     setErr('');
                   }
@@ -481,7 +473,7 @@ function AssignByClass({ api }: Props) {
                 value={draft.subjectId}
                 onChange={(e) => {
                   const subjectId = e.target.value;
-                  setDraft({ ...draft, subjectId, teacherId: draft.teacherId ?? suggestTeacher(subjectId) });
+                  setDraft({ ...draft, subjectId });
                 }}
               >
                 {filteredAvailable.map((s) => (
@@ -524,7 +516,7 @@ function AssignByClass({ api }: Props) {
             >
               <option value="">— ไม่ระบุ —</option>
               {[...data.teachers]
-                .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+                .sort((a, b) => compareAreas(a.area, b.area) || a.name.localeCompare(b.name, 'th'))
                 .map((t) => (
                   <option key={t.id} value={t.id}>{t.name}{t.area ? ` (${t.area})` : ''}</option>
                 ))}
