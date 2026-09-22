@@ -1,7 +1,7 @@
 // Offerings — จัดรายวิชา: เลือกห้อง + ภาคเรียน แล้วเพิ่มวิชาที่เรียน
 import { useMemo, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
-import { type Offering, type Semester } from '../types';
+import { compareAreas, type Offering, type Semester } from '../types';
 import {
   classCredits,
   classElectiveGroups,
@@ -76,10 +76,15 @@ function AssignByClass({ api }: Props) {
     return data.teachers.find((t) => t.area === subj.area)?.id;
   };
 
-  const rows = useMemo(
-    () => data.offerings.filter((o) => o.classId === classId && o.semester === semester),
-    [data.offerings, classId, semester],
-  );
+  const rows = useMemo(() => data.offerings
+    .filter((o) => o.classId === classId && o.semester === semester)
+    .sort((a, b) => {
+      const sa = sMap.get(a.subjectId);
+      const sb = sMap.get(b.subjectId);
+      if (!sa) return sb ? 1 : 0;
+      if (!sb) return -1;
+      return compareAreas(sa.area, sb.area) || sa.code.localeCompare(sb.code, 'th');
+    }), [data.offerings, classId, semester, sMap]);
 
   // กรองตามคำค้น (รหัส/ชื่อวิชา/ครู/ห้อง/กลุ่มเลือก)
   const visibleRows = useMemo(() => {
@@ -109,7 +114,7 @@ function AssignByClass({ api }: Props) {
     const usedIds = new Set(rows.map((r) => r.subjectId));
     return data.subjects
       .filter((s) => s.level === level && !usedIds.has(s.id))
-      .sort((a, b) => a.code.localeCompare(b.code, 'th'));
+      .sort((a, b) => compareAreas(a.area, b.area) || a.code.localeCompare(b.code, 'th'));
   }, [currentClass, data.subjects, rows]);
 
   const openAdd = () => {

@@ -55,6 +55,8 @@ function matchHeader(header: string): CanonicalKey | null {
 function resolveArea(value: string): Area | null {
   const v = norm(value);
   if (!v) return null;
+  // รองรับคำสะกดที่พบบ่อยในไฟล์จริง: "กิจรรมพัฒนาผู้เรียน" (ขาด ก)
+  if (/กิจ(?:ก)?รรม.*พัฒนา.*ผู้เรียน/.test(v)) return 'กิจกรรมพัฒนาผู้เรียน';
   const exact = AREAS.find((a) => a === v);
   if (exact) return exact;
   // จับคู่แบบหลวม เช่น "วิทยาศาสตร์" -> "วิทยาศาสตร์และเทคโนโลยี", "สังคมศึกษา" -> "สังคมศึกษาฯ"
@@ -64,7 +66,7 @@ function resolveArea(value: string): Area | null {
 
 function resolveType(value: string): SubjectType | null {
   const v = norm(value);
-  if (/กิจกรรม|พัฒนาผู้เรียน|activity/i.test(v)) return 'กิจกรรมพัฒนาผู้เรียน';
+  if (/กิจ(?:ก)?รรม|พัฒนาผู้เรียน|activity/i.test(v)) return 'กิจกรรมพัฒนาผู้เรียน';
   if (/พื้น|base|core/i.test(v)) return 'พื้นฐาน';
   if (/เพิ่ม|add|elect/i.test(v)) return 'เพิ่มเติม';
   return null;

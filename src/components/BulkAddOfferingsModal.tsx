@@ -2,7 +2,7 @@
 // ค้นหา/เลือกจากรายวิชาในคลัง (กรองระดับห้อง + ที่ยังไม่จัดในภาคเรียนนี้)
 import { useMemo, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
-import type { Semester } from '../types';
+import { compareAreas, type Semester } from '../types';
 import { classElectiveGroups, classLabel, classLevel, subRoomGroups, subjectMap } from '../calculations';
 import { Modal } from './common/Modal';
 
@@ -31,7 +31,9 @@ export function BulkAddOfferingsModal({ api, classId, semester, onDone, onClose 
   );
   // วิชาในคลังที่เลือกได้ = ระดับตรงกับห้อง และยังไม่ถูกจัด
   const available = useMemo(
-    () => data.subjects.filter((s) => s.level === level && !usedIds.has(s.id)).sort((a, b) => a.code.localeCompare(b.code, 'th')),
+    () => data.subjects
+      .filter((s) => s.level === level && !usedIds.has(s.id))
+      .sort((a, b) => compareAreas(a.area, b.area) || a.code.localeCompare(b.code, 'th')),
     [data.subjects, level, usedIds],
   );
   const filtered = useMemo(() => {

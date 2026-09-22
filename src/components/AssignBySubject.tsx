@@ -4,7 +4,7 @@
 // - เลือกหลายวิชา: เพิ่มทุกคู่ (วิชา × ห้อง) ที่ยังไม่จัด ทีเดียว (เหมาะกับวิชาพื้นฐานลงทุกห้อง)
 import { useEffect, useMemo, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
-import { type Level, type Offering, type Semester, type SubjectType, tracksForLevel } from '../types';
+import { compareAreas, type Level, type Offering, type Semester, type SubjectType, tracksForLevel } from '../types';
 import { classElectiveGroups, classLabel, classLevel, subjectMap, subRoomGroups } from '../calculations';
 import { Modal } from './common/Modal';
 import { ConfirmDialog, type ConfirmState } from './common/ConfirmDialog';
@@ -52,7 +52,7 @@ export function AssignBySubject({ api }: Props) {
           (typeFilter === 'ทั้งหมด' || s.type === typeFilter) &&
           (!q || `${s.code} ${s.name}`.toLowerCase().includes(q)),
       )
-      .sort((a, b) => a.code.localeCompare(b.code, 'th'));
+      .sort((a, b) => compareAreas(a.area, b.area) || a.code.localeCompare(b.code, 'th'));
   }, [data.subjects, level, typeFilter, subjectSearch]);
 
   const selectedSubjectList = useMemo(

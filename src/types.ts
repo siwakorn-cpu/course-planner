@@ -17,6 +17,13 @@ export const AREAS = [
 ] as const;
 export type Area = (typeof AREAS)[number];
 
+/** เรียงกลุ่มสาระตามลำดับมาตรฐาน 01–09 ใน AREAS */
+export function compareAreas(a?: Area, b?: Area): number {
+  if (a == null) return b == null ? 0 : 1;
+  if (b == null) return -1;
+  return AREAS.indexOf(a) - AREAS.indexOf(b);
+}
+
 /** ประเภทของรายวิชา */
 export type SubjectType = 'พื้นฐาน' | 'เพิ่มเติม' | 'กิจกรรมพัฒนาผู้เรียน';
 

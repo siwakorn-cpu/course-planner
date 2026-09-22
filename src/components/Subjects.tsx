@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
 import {
   AREAS,
+  compareAreas,
   type Area,
   type Level,
   type Subject,
@@ -74,7 +75,7 @@ export function Subjects({ api }: Props) {
   const [fArea, setFArea] = useState<Area | 'ทั้งหมด'>('ทั้งหมด');
   const [fType, setFType] = useState<SubjectType | 'ทั้งหมด'>('ทั้งหมด');
   const [fLevel, setFLevel] = useState<Level | 'ทั้งหมด'>('ทั้งหมด');
-  const [sortKey, setSortKey] = useState<SortKey>('code');
+  const [sortKey, setSortKey] = useState<SortKey>('area');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [draft, setDraft] = useState<Draft | null>(null);
   const [importState, setImportState] = useState<{ result: ParseResult; fileName: string } | null>(null);
@@ -109,7 +110,9 @@ export function Subjects({ api }: Props) {
     const arr = [...filtered];
     arr.sort((a, b) => {
       let cmp: number;
-      if (NUMERIC_KEYS.includes(sortKey)) {
+      if (sortKey === 'area') {
+        cmp = compareAreas(a.area, b.area) || a.code.localeCompare(b.code, 'th');
+      } else if (NUMERIC_KEYS.includes(sortKey)) {
         cmp = (a[sortKey] as number) - (b[sortKey] as number);
       } else {
         cmp = String(a[sortKey]).localeCompare(String(b[sortKey]), 'th');

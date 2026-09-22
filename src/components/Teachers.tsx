@@ -1,7 +1,7 @@
 // Teachers — จัดการรายชื่อครู: เพิ่ม/แก้/ลบ/นำเข้า Excel + ดูภาระคาบสอนรวมต่อคน
 import { useMemo, useRef, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
-import { AREAS, type Area, type Teacher } from '../types';
+import { AREAS, compareAreas, type Area, type Teacher } from '../types';
 import { type SemesterFilter, teacherWorkloadTotals } from '../calculations';
 import { downloadTeacherTemplate, parseTeacherFile, type TeacherParseResult } from '../importExcel';
 import { Modal } from './common/Modal';
@@ -64,7 +64,9 @@ export function Teachers({ api }: Props) {
     setDraft(null);
   };
 
-  const sorted = [...data.teachers].sort((a, b) => a.name.localeCompare(b.name, 'th'));
+  const sorted = [...data.teachers].sort((a, b) =>
+    compareAreas(a.area, b.area) || a.name.localeCompare(b.name, 'th'),
+  );
 
   return (
     <div>

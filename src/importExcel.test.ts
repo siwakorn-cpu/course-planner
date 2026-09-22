@@ -40,6 +40,16 @@ describe('นำเข้ารายวิชาจากตาราง', () =
     expect(res.valid[0].data?.type).toBe('กิจกรรมพัฒนาผู้เรียน');
   });
 
+  it('แก้คำสะกด “กิจรรมพัฒนาผู้เรียน” จากไฟล์เก่าเป็นค่ามาตรฐาน', () => {
+    const aoa = [HEADER, ['ก21901', 'ก.แนะแนว 1', 'กิจรรมพัฒนาผู้เรียน', 'กิจรรมพัฒนาผู้เรียน', 0, 1, 'ม.ต้น']];
+    const res = rowsToSubjects(aoa, settings, noExisting);
+    expect(res.invalid).toHaveLength(0);
+    expect(res.valid[0].data).toMatchObject({
+      area: 'กิจกรรมพัฒนาผู้เรียน',
+      type: 'กิจกรรมพัฒนาผู้เรียน',
+    });
+  });
+
   it('จับข้อผิดพลาดรายแถว (กลุ่มสาระผิด, ไม่มีชื่อ)', () => {
     const aoa = [
       HEADER,

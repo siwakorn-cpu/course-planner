@@ -22,6 +22,8 @@ import {
   workloadByArea,
 } from './calculations';
 import {
+  AREAS,
+  compareAreas,
   DEFAULT_SETTINGS,
   type Offering,
   type Settings,
@@ -30,6 +32,13 @@ import {
 } from './types';
 
 const settings: Settings = structuredClone(DEFAULT_SETTINGS);
+
+describe('ลำดับกลุ่มสาระ', () => {
+  it('เรียงตามลำดับ 01–09 โดยไม่ใช้ลำดับตัวอักษร', () => {
+    const shuffled = ['กิจกรรมพัฒนาผู้เรียน', 'คณิตศาสตร์', 'ภาษาไทย'] as const;
+    expect([...shuffled].sort(compareAreas)).toEqual(AREAS.filter((a) => shuffled.includes(a as typeof shuffled[number])));
+  });
+});
 
 // ---- ชุดข้อมูลทดสอบเล็ก ๆ ----
 const subjects: Subject[] = [
