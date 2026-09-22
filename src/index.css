@@ -761,45 +761,96 @@ th.sortable:hover { color: var(--text); }
   margin-bottom: 1rem;
 }
 
-/* สรุปแยกรายกลุ่มในหน้าจัดรายวิชา (แบบกะทัดรัด) */
+/* สรุปแยกรายกลุ่มในหน้าจัดรายวิชา (แบบกะทัดรัด + สวยงาม) */
 .offering-summary-wrap {
   margin-bottom: 1rem;
   overflow-x: auto;
 }
 
 .offering-summary-table {
-  border-collapse: collapse;
-  font-size: 0.8rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.82rem;
   width: auto;
+  min-width: min(420px, 100%);
   max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .offering-summary-table th,
 .offering-summary-table td {
-  padding: 0.28rem 0.7rem;
-  border: 1px solid var(--border);
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
   text-align: left;
   white-space: nowrap;
 }
 
-.offering-summary-table th {
-  background: var(--surface-2);
+.offering-summary-table thead th {
+  background: linear-gradient(var(--surface-2), var(--surface-2));
   font-weight: 700;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  border-bottom: 2px solid var(--border);
+}
+
+.offering-summary-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.offering-summary-table tbody tr:hover td {
+  background: var(--surface-2);
 }
 
 .offering-summary-table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .offering-summary-table .offering-summary-total td {
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
   font-weight: 700;
+  color: var(--text);
+  border-top: 2px solid var(--border);
+}
+
+.offering-summary-table .offering-summary-total .num {
+  color: var(--primary);
 }
 
 .offering-summary-note {
-  margin: 0.35rem 0 0;
+  margin: 0.45rem 0 0;
   font-size: 0.76rem;
+}
+
+/* ตารางจัดสอน (ตั้งต้นจากห้อง) — ฟอนต์เล็ก/ช่องแน่น */
+.offering-table {
+  font-size: 0.76rem;
+}
+
+.offering-table th,
+.offering-table td {
+  padding: 0.22rem 0.38rem;
+}
+
+.offering-table .btn.small {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.4rem;
+}
+
+/* จัดกึ่งกลาง: นก. / คาบ/สัปดาห์ / ห้อง/สถานที่ / ครูผู้สอน (คอลัมน์ 5–8) */
+.offering-table th:nth-child(5), .offering-table td:nth-child(5),
+.offering-table th:nth-child(6), .offering-table td:nth-child(6),
+.offering-table th:nth-child(7), .offering-table td:nth-child(7),
+.offering-table th:nth-child(8), .offering-table td:nth-child(8) {
+  text-align: center;
 }
 
 .print-report-visible .print-area-section {

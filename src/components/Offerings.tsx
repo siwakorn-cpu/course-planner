@@ -374,7 +374,7 @@ function AssignByClass({ api }: Props) {
         <div className="card empty">ไม่พบวิชาที่ตรงกับ “{search}” ในภาคเรียนนี้</div>
       ) : (
         <div className="table-wrap">
-          <table>
+          <table className="offering-table">
             <thead>
               <tr>
                 <th className="num">ลำดับ</th>
