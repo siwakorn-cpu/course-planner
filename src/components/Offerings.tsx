@@ -219,7 +219,7 @@ function AssignByClass({ api }: Props) {
                   <tr key={o.id}>
                     <td>{s.code}</td>
                     <td>{s.name}</td>
-                    <td><span className={`badge ${s.type === 'พื้นฐาน' ? 'base' : 'add'}`}>{s.type}</span></td>
+                    <td><span className={`badge ${s.type === 'พื้นฐาน' ? 'base' : s.type === 'เพิ่มเติม' ? 'add' : 'activity'}`}>{s.type}</span></td>
                     <td className="num">{s.credits}</td>
                     <td className="num">
                       {offeringPeriods(o, s)}

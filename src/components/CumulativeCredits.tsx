@@ -50,7 +50,7 @@ function CourseTable({ lines }: { lines: CourseLine[] }) {
             <tr key={`${l.code}-${i}`}>
               <td>{l.code}</td>
               <td>{l.name}</td>
-              <td><span className={`badge ${l.type === 'พื้นฐาน' ? 'base' : 'add'}`}>{l.type}</span></td>
+              <td><span className={`badge ${l.type === 'พื้นฐาน' ? 'base' : l.type === 'เพิ่มเติม' ? 'add' : 'activity'}`}>{l.type}</span></td>
               <td className="num">{l.credits}</td>
               <td><span className="muted">{l.source}{l.group ? ` · ${l.group}` : ''}</span></td>
             </tr>

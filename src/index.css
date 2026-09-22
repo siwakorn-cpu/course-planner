@@ -351,6 +351,7 @@ th.sortable:hover { color: var(--text); }
 }
 .badge.base { background: var(--primary-weak); color: var(--primary); }
 .badge.add { background: var(--warning-weak); color: var(--warning); }
+.badge.activity { background: var(--success-weak); color: var(--success); }
 .badge.ok { background: var(--success-weak); color: var(--success); }
 .badge.warn { background: var(--warning-weak); color: var(--warning); }
 .badge.over { background: var(--danger-weak); color: var(--danger); }

@@ -74,8 +74,9 @@ export function classCredits(
     const subj = sMap.get(off.subjectId);
     if (!subj) continue;
     if (subj.type === 'พื้นฐาน') summary.basic += subj.credits;
-    else summary.additional += subj.credits;
-    summary.total += subj.credits;
+    else if (subj.type === 'เพิ่มเติม') summary.additional += subj.credits;
+    // กิจกรรมพัฒนาผู้เรียนไม่นับเป็นหน่วยกิตพื้นฐาน/เพิ่มเติม
+    if (subj.type !== 'กิจกรรมพัฒนาผู้เรียน') summary.total += subj.credits;
   }
   return summary;
 }
@@ -87,8 +88,8 @@ export function sumCreditRecords(records: CreditRecord[], group?: string): Credi
     const g = r.group?.trim() ?? '';
     if (group !== undefined && g !== '' && g !== group) continue;
     if (r.type === 'พื้นฐาน') summary.basic += r.credits;
-    else summary.additional += r.credits;
-    summary.total += r.credits;
+    else if (r.type === 'เพิ่มเติม') summary.additional += r.credits;
+    if (r.type !== 'กิจกรรมพัฒนาผู้เรียน') summary.total += r.credits;
   }
   return summary;
 }

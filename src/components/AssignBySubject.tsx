@@ -222,6 +222,7 @@ export function AssignBySubject({ api }: Props) {
             <button className={typeFilter === 'ทั้งหมด' ? 'active' : ''} onClick={() => setTypeFilter('ทั้งหมด')}>ทั้งหมด</button>
             <button className={typeFilter === 'พื้นฐาน' ? 'active' : ''} onClick={() => setTypeFilter('พื้นฐาน')}>พื้นฐาน</button>
             <button className={typeFilter === 'เพิ่มเติม' ? 'active' : ''} onClick={() => setTypeFilter('เพิ่มเติม')}>เพิ่มเติม</button>
+            <button className={typeFilter === 'กิจกรรมพัฒนาผู้เรียน' ? 'active' : ''} onClick={() => setTypeFilter('กิจกรรมพัฒนาผู้เรียน')}>กิจกรรมพัฒนาผู้เรียน</button>
           </div>
         </div>
 

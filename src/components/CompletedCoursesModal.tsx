@@ -65,7 +65,7 @@ export function CompletedCoursesModal({ classroom, api, onClose }: Props) {
                 <tr key={c.id}>
                   <td>{c.code}</td>
                   <td>{c.name}</td>
-                  <td><span className={`badge ${c.type === 'พื้นฐาน' ? 'base' : 'add'}`}>{c.type}</span></td>
+                  <td><span className={`badge ${c.type === 'พื้นฐาน' ? 'base' : c.type === 'เพิ่มเติม' ? 'add' : 'activity'}`}>{c.type}</span></td>
                   <td className="num">{c.credits}</td>
                   <td>{c.note || <span className="muted">—</span>}</td>
                   <td><button className="btn small ghost" onClick={() => api.removeCompleted(c.id)}>ลบ</button></td>
@@ -87,6 +87,7 @@ export function CompletedCoursesModal({ classroom, api, onClose }: Props) {
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as SubjectType })}>
             <option value="พื้นฐาน">พื้นฐาน</option>
             <option value="เพิ่มเติม">เพิ่มเติม</option>
+            <option value="กิจกรรมพัฒนาผู้เรียน">กิจกรรมพัฒนาผู้เรียน</option>
           </select>
         </div>
         <div className="field"><label>หน่วยกิต</label><input type="number" min={0} step={0.5} value={form.credits} onChange={(e) => setForm({ ...form, credits: Number(e.target.value) })} /></div>

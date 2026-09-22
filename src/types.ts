@@ -18,7 +18,7 @@ export const AREAS = [
 export type Area = (typeof AREAS)[number];
 
 /** ประเภทของรายวิชา */
-export type SubjectType = 'พื้นฐาน' | 'เพิ่มเติม';
+export type SubjectType = 'พื้นฐาน' | 'เพิ่มเติม' | 'กิจกรรมพัฒนาผู้เรียน';
 
 /** ระดับชั้น */
 export type Level = 'ม.ต้น' | 'ม.ปลาย';
@@ -36,7 +36,7 @@ export interface Subject {
   code: string; // รหัสวิชา เช่น ท21101
   name: string; // ชื่อวิชา
   area: Area; // กลุ่มสาระ
-  type: SubjectType; // พื้นฐาน | เพิ่มเติม
+  type: SubjectType; // พื้นฐาน | เพิ่มเติม | กิจกรรมพัฒนาผู้เรียน
   credits: number; // หน่วยกิต
   periods: number; // คาบ/สัปดาห์ (ค่ามาตรฐานของวิชานี้)
   level: Level; // ม.ต้น | ม.ปลาย
@@ -85,7 +85,7 @@ export interface CreditRecord {
   code: string; // รหัสวิชา
   name: string; // ชื่อวิชา
   credits: number; // หน่วยกิต
-  type: SubjectType; // พื้นฐาน | เพิ่มเติม
+  type: SubjectType; // พื้นฐาน | เพิ่มเติม | กิจกรรมพัฒนาผู้เรียน
   group?: string; // กลุ่มเลือกภายในห้อง (ว่าง = เรียนร่วมทั้งห้อง)
   note?: string; // หมายเหตุ เช่น "ม.4 ภาคเรียน 1/2566"
 }

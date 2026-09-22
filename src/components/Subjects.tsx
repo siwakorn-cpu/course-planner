@@ -165,6 +165,7 @@ export function Subjects({ api }: Props) {
           <option value="ทั้งหมด">ทุกประเภท</option>
           <option value="พื้นฐาน">พื้นฐาน</option>
           <option value="เพิ่มเติม">เพิ่มเติม</option>
+          <option value="กิจกรรมพัฒนาผู้เรียน">กิจกรรมพัฒนาผู้เรียน</option>
         </select>
         <select value={fLevel} onChange={(e) => setFLevel(e.target.value as Level | 'ทั้งหมด')} className="filter-select">
           <option value="ทั้งหมด">ทุกระดับ</option>
@@ -214,7 +215,7 @@ export function Subjects({ api }: Props) {
                   <td>{s.name}</td>
                   <td>{s.area}</td>
                   <td>
-                    <span className={`badge ${s.type === 'พื้นฐาน' ? 'base' : 'add'}`}>{s.type}</span>
+                    <span className={`badge ${s.type === 'พื้นฐาน' ? 'base' : s.type === 'เพิ่มเติม' ? 'add' : 'activity'}`}>{s.type}</span>
                   </td>
                   <td>{s.level}</td>
                   <td className="num">{s.credits}</td>
@@ -269,6 +270,7 @@ export function Subjects({ api }: Props) {
               <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as SubjectType })}>
                 <option value="พื้นฐาน">พื้นฐาน</option>
                 <option value="เพิ่มเติม">เพิ่มเติม</option>
+                <option value="กิจกรรมพัฒนาผู้เรียน">กิจกรรมพัฒนาผู้เรียน</option>
               </select>
             </div>
           </div>

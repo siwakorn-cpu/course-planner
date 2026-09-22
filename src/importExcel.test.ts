@@ -34,6 +34,12 @@ describe('นำเข้ารายวิชาจากตาราง', () =
     expect(res.valid[0].data).toMatchObject({ area: 'สังคมศึกษาฯ', type: 'เพิ่มเติม', level: 'ม.ปลาย' });
   });
 
+  it('รองรับประเภทกิจกรรมพัฒนาผู้เรียน', () => {
+    const aoa = [HEADER, ['กม9101', 'ชุมนุม', 'กิจกรรมพัฒนาผู้เรียน', 'กิจกรรมพัฒนาผู้เรียน', 0, 1, 'ม.ต้น']];
+    const res = rowsToSubjects(aoa, settings, noExisting);
+    expect(res.valid[0].data?.type).toBe('กิจกรรมพัฒนาผู้เรียน');
+  });
+
   it('จับข้อผิดพลาดรายแถว (กลุ่มสาระผิด, ไม่มีชื่อ)', () => {
     const aoa = [
       HEADER,

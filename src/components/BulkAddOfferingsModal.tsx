@@ -124,7 +124,7 @@ export function BulkAddOfferingsModal({ api, classId, semester, onDone, onClose 
                   <td><input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} onClick={(e) => e.stopPropagation()} /></td>
                   <td>{s.code}</td>
                   <td>{s.name}</td>
-                  <td><span className={`badge ${s.type === 'พื้นฐาน' ? 'base' : 'add'}`}>{s.type}</span></td>
+                  <td><span className={`badge ${s.type === 'พื้นฐาน' ? 'base' : s.type === 'เพิ่มเติม' ? 'add' : 'activity'}`}>{s.type}</span></td>
                   <td className="num">{s.credits}</td>
                 </tr>
               ))}
