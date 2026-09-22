@@ -797,8 +797,16 @@ th.sortable:hover { color: var(--text); }
 }
 
 .print-report-visible .print-course-table {
-  min-width: 1120px;
-  font-size: 0.82rem;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.print-report-visible .print-course-table th,
+.print-report-visible .print-course-table td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .print-report-visible .print-course-table th,
@@ -843,8 +851,8 @@ th.sortable:hover { color: var(--text); }
 .print-col-note { width: 13%; }
 
 @page {
-  size: A4 landscape;
-  margin: 9mm;
+  size: A4 portrait;
+  margin: 10mm;
 }
 
 @media print {
@@ -852,7 +860,8 @@ th.sortable:hover { color: var(--text); }
   body {
     background: #fff !important;
     color: #000 !important;
-    font-size: 10pt;
+    font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', sans-serif;
+    font-size: 14pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -898,26 +907,26 @@ th.sortable:hover { color: var(--text); }
 
   .print-report-head h1 {
     margin: 0;
-    font-size: 15pt;
+    font-size: 18pt;
   }
 
   .print-report-head p {
     margin: 0.4mm 0 0;
-    font-size: 10pt;
-    line-height: 1.25;
+    font-size: 14pt;
+    line-height: 1.2;
   }
 
   .print-report-head p:nth-of-type(2) {
     font-weight: 700;
-    font-size: 11pt;
+    font-size: 15pt;
   }
 
   .print-course-table {
     width: 100%;
     table-layout: fixed;
     border-collapse: collapse;
-    font-size: 8.2pt;
-    line-height: 1.2;
+    font-size: 14pt;
+    line-height: 1.15;
   }
 
   .print-course-table thead {
@@ -932,7 +941,7 @@ th.sortable:hover { color: var(--text); }
   .print-course-table th,
   .print-course-table td {
     position: static;
-    padding: 1.5mm 1.2mm;
+    padding: 1mm 0.8mm;
     border: 0.25mm solid #444;
     color: #000;
     background: #fff;

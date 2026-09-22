@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
 import type { Semester } from '../types';
 import { PrintOfferingsReport } from './PrintOfferingsReport';
+import { exportOfferingsToExcel } from '../exportOfferings';
 
 interface Props {
   api: AppDataApi;
@@ -10,6 +11,18 @@ interface Props {
 export function OfferedCourses({ api }: Props) {
   const [semester, setSemester] = useState<Semester>(1);
   const [academicYear, setAcademicYear] = useState(() => String(new Date().getFullYear() + 543));
+  const [exporting, setExporting] = useState(false);
+
+  const handleExcel = async () => {
+    setExporting(true);
+    try {
+      await exportOfferingsToExcel(api.data, semester, academicYear.trim());
+    } catch (err) {
+      console.error('ส่งออก Excel ไม่สำเร็จ', err);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="offered-courses-page">
@@ -33,6 +46,9 @@ export function OfferedCourses({ api }: Props) {
           />
         </label>
         <span className="spacer" />
+        <button className="btn" onClick={handleExcel} disabled={!academicYear.trim() || exporting}>
+          {exporting ? '⏳ กำลังสร้าง…' : '⬇️ ส่งออก Excel'}
+        </button>
         <button className="btn primary" onClick={() => window.print()} disabled={!academicYear.trim()}>
           🖨️ Print รายงาน
         </button>

@@ -72,6 +72,10 @@ export interface Offering {
   classId: string;
   subjectId: string;
   semester: Semester;
+  /** รหัสชุดการเพิ่ม ใช้ย้ายรายการที่เพิ่มพร้อมกันไปยังภาคเรียนอื่น */
+  batchId?: string;
+  /** เวลาที่เพิ่มรายการในรูปแบบ ISO ใช้หาชุดที่ทำล่าสุด */
+  createdAt?: string;
   periods?: number; // ถ้าระบุ = ใช้แทนคาบมาตรฐานของวิชา (override)
   room?: string; // สถานที่/ห้องปฏิบัติการ
   teacherId?: string; // อ้างอิงครูผู้สอน (ดูรายชื่อใน AppData.teachers)
@@ -147,7 +151,7 @@ export interface AppData {
 }
 
 /** เวอร์ชันสคีมาข้อมูล — เพิ่มเลขนี้เมื่อโครงสร้างเปลี่ยน */
-export const DATA_VERSION = 6;
+export const DATA_VERSION = 7;
 
 /** แผนการเรียนตั้งต้น (ม.ปลาย) — แก้ไข/เพิ่ม/ลบได้ในแอป */
 export const DEFAULT_PLANS = ['วิทย์-คณิต', 'ศิลป์-คำนวณ', 'ศิลป์-ภาษา', 'ศิลป์-ทั่วไป'];

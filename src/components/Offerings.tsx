@@ -18,6 +18,11 @@ import { ConfirmDialog, type ConfirmState } from './common/ConfirmDialog';
 import { Toast, type ToastData } from './common/Toast';
 import { AssignBySubject } from './AssignBySubject';
 import { BulkAddOfferingsModal } from './BulkAddOfferingsModal';
+import {
+  findOfferingConflict,
+  latestOfferingBatch,
+  planOfferingSemesterMove,
+} from '../offeringSemester';
 
 interface Props {
   api: AppDataApi;
@@ -30,6 +35,45 @@ type Mode = 'class' | 'subject';
 export function Offerings({ api }: Props) {
   const { data } = api;
   const [mode, setMode] = useState<Mode>('class');
+  const [moveTarget, setMoveTarget] = useState<Semester | null>(null);
+  const [undoMove, setUndoMove] = useState<{ ids: string[]; semester: Semester } | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
+  const recentBatch = useMemo(() => latestOfferingBatch(data.offerings), [data.offerings]);
+  const movePlan = useMemo(
+    () => moveTarget == null
+      ? null
+      : planOfferingSemesterMove(data.offerings, recentBatch.map((offering) => offering.id), moveTarget),
+    [data.offerings, moveTarget, recentBatch],
+  );
+  const batchTerm1 = recentBatch.filter((offering) => offering.semester === 1).length;
+  const batchTerm2 = recentBatch.filter((offering) => offering.semester === 2).length;
+  const batchTime = recentBatch[0]?.createdAt
+    ? new Date(recentBatch[0].createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+    : '';
+
+  const confirmMove = () => {
+    if (moveTarget == null || !movePlan) return;
+    const sourceSemester: Semester = moveTarget === 1 ? 2 : 1;
+    const result = api.moveOfferingsToSemester(movePlan.requestedIds, moveTarget);
+    if (result.movedIds.length > 0) {
+      setUndoMove({ ids: result.movedIds, semester: sourceSemester });
+    }
+    setToast({
+      type: result.movedIds.length > 0 ? 'success' : 'info',
+      message: `ย้ายไปภาคเรียนที่ ${moveTarget} แล้ว ${result.movedIds.length} รายการ${result.conflictIds.length ? ` · ข้ามรายการซ้ำ ${result.conflictIds.length}` : ''}`,
+    });
+    setMoveTarget(null);
+  };
+
+  const undoLatestMove = () => {
+    if (!undoMove) return;
+    const result = api.moveOfferingsToSemester(undoMove.ids, undoMove.semester);
+    setToast({
+      type: result.movedIds.length > 0 ? 'success' : 'info',
+      message: `ย้อนกลับไปภาคเรียนที่ ${undoMove.semester} แล้ว ${result.movedIds.length} รายการ${result.conflictIds.length ? ` · ข้ามรายการซ้ำ ${result.conflictIds.length}` : ''}`,
+    });
+    setUndoMove(null);
+  };
 
   return (
     <div>
@@ -37,6 +81,27 @@ export function Offerings({ api }: Props) {
         <h2>🗂️ จัดรายวิชา</h2>
         <p>เลือกวิธีจัด: ตั้งต้นจากห้อง (เพิ่มหลายวิชาให้ห้องเดียว) หรือ ตั้งต้นจากรายวิชา (เพิ่มวิชาเดียวให้หลายห้อง)</p>
       </div>
+
+      {recentBatch.length > 0 && (
+        <div className="card" style={{ marginBottom: '1rem', borderColor: 'var(--primary)' }}>
+          <div className="row-gap" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <strong>🕘 รายการที่เพิ่มล่าสุด {recentBatch.length} รายการ</strong>
+              <div className="muted" style={{ fontSize: '0.85rem' }}>
+                {batchTerm1 > 0 && `ภาคเรียนที่ 1: ${batchTerm1} รายการ`}
+                {batchTerm1 > 0 && batchTerm2 > 0 && ' · '}
+                {batchTerm2 > 0 && `ภาคเรียนที่ 2: ${batchTerm2} รายการ`}
+                {batchTime && ` · ${batchTime}`}
+              </div>
+            </div>
+            <div className="row-gap" style={{ flexWrap: 'wrap' }}>
+              {batchTerm2 > 0 && <button className="btn small" onClick={() => setMoveTarget(1)}>ย้ายชุดนี้ไปเทอม 1</button>}
+              {batchTerm1 > 0 && <button className="btn small" onClick={() => setMoveTarget(2)}>ย้ายชุดนี้ไปเทอม 2</button>}
+              {undoMove && <button className="btn small ghost" onClick={undoLatestMove}>↶ ย้อนกลับการย้าย</button>}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="pill-group" style={{ marginBottom: '1rem' }}>
         <button className={mode === 'class' ? 'active' : ''} onClick={() => setMode('class')}>🏫 ตั้งต้นจากห้อง</button>
@@ -50,6 +115,48 @@ export function Offerings({ api }: Props) {
       ) : (
         <AssignBySubject api={api} />
       )}
+
+      {moveTarget != null && movePlan && (() => {
+        const moving = recentBatch.filter((offering) => movePlan.movableIds.includes(offering.id));
+        const conflicts = recentBatch.filter((offering) => movePlan.conflictIds.includes(offering.id));
+        const roomLabels = [...new Set(moving.map((offering) => {
+          const cls = data.classes.find((item) => item.id === offering.classId);
+          return cls ? classLabel(cls, true) : offering.classId;
+        }))];
+        const subjectLabels = [...new Set(moving.map((offering) => {
+          const subject = data.subjects.find((item) => item.id === offering.subjectId);
+          return subject ? `${subject.code} ${subject.name}` : offering.subjectId;
+        }))];
+        return (
+          <Modal title={`ย้ายรายการล่าสุดไปภาคเรียนที่ ${moveTarget}`} onClose={() => setMoveTarget(null)}>
+            <p style={{ margin: '0.25rem 0 0' }}>
+              ระบบจะย้าย <strong>{movePlan.movableIds.length} รายการ</strong> ไปภาคเรียนที่ {moveTarget}
+            </p>
+            <div className="grid cols-auto" style={{ margin: '0.8rem 0' }}>
+              <div className="card stat"><span className="stat-value" style={{ fontSize: '1.35rem' }}>{movePlan.movableIds.length}</span><span className="stat-label">รายการที่จะย้าย</span></div>
+              <div className="card stat"><span className="stat-value" style={{ fontSize: '1.35rem' }}>{roomLabels.length}</span><span className="stat-label">ห้องเรียน</span></div>
+              <div className="card stat"><span className="stat-value" style={{ fontSize: '1.35rem' }}>{subjectLabels.length}</span><span className="stat-label">รายวิชา</span></div>
+            </div>
+            {roomLabels.length > 0 && <p className="muted" style={{ margin: '0.3rem 0' }}><strong>ห้อง:</strong> {roomLabels.slice(0, 8).join(', ')}{roomLabels.length > 8 ? ` และอีก ${roomLabels.length - 8} ห้อง` : ''}</p>}
+            {subjectLabels.length > 0 && <p className="muted" style={{ margin: '0.3rem 0' }}><strong>วิชา:</strong> {subjectLabels.slice(0, 6).join(', ')}{subjectLabels.length > 6 ? ` และอีก ${subjectLabels.length - 6} วิชา` : ''}</p>}
+            {movePlan.unchangedIds.length > 0 && (
+              <p className="muted" style={{ margin: '0.6rem 0 0' }}>{movePlan.unchangedIds.length} รายการอยู่ในภาคเรียนที่ {moveTarget} แล้ว จึงไม่ต้องย้าย</p>
+            )}
+            {conflicts.length > 0 && (
+              <div style={{ marginTop: '0.75rem', padding: '0.7rem 0.8rem', borderRadius: 8, background: 'var(--warning-weak)', color: 'var(--warning)' }}>
+                <strong>พบรายการซ้ำ {conflicts.length} รายการ — ระบบจะข้ามและไม่เขียนทับข้อมูลเดิม</strong>
+              </div>
+            )}
+            <p className="muted" style={{ fontSize: '0.85rem' }}>ครูผู้สอน จำนวนคาบ ห้อง/สถานที่ และกลุ่มเลือกจะคงเดิมทั้งหมด</p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setMoveTarget(null)}>ยกเลิก</button>
+              <button className="btn primary" onClick={confirmMove} disabled={movePlan.movableIds.length === 0}>ยืนยันย้าย {movePlan.movableIds.length} รายการ</button>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {toast && <Toast data={toast} onClose={() => setToast(null)} />}
     </div>
   );
 }
@@ -59,6 +166,7 @@ function AssignByClass({ api }: Props) {
   const [classId, setClassId] = useState<string>(data.classes[0]?.id ?? '');
   const [semester, setSemester] = useState<Semester>(1);
   const [search, setSearch] = useState('');
+  const [addSubjectSearch, setAddSubjectSearch] = useState('');
   const [draft, setDraft] = useState<Draft | null>(null);
   const [err, setErr] = useState('');
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
@@ -117,9 +225,21 @@ function AssignByClass({ api }: Props) {
       .sort((a, b) => compareAreas(a.area, b.area) || a.code.localeCompare(b.code, 'th'));
   }, [currentClass, data.subjects, rows]);
 
+  const filteredAvailable = useMemo(() => {
+    const q = addSubjectSearch.trim().toLowerCase();
+    if (!q) return available;
+    return available.filter((subject) =>
+      [subject.code, subject.name, subject.area, subject.type]
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [addSubjectSearch, available]);
+
   const openAdd = () => {
     if (!classId) return;
     setErr('');
+    setAddSubjectSearch('');
     const first = available[0];
     setDraft({
       classId,
@@ -137,8 +257,14 @@ function AssignByClass({ api }: Props) {
       setErr('กรุณาเลือกวิชา');
       return;
     }
-    if (draft.id) api.updateOffering(draft as Offering);
-    else api.addOffering(draft);
+    if (draft.id) {
+      if (findOfferingConflict(data.offerings, draft as Offering)) {
+        setErr('ภาคเรียนปลายทางมีวิชานี้สำหรับห้องและกลุ่มเดียวกันอยู่แล้ว กรุณาเลือกภาคเรียนอื่น');
+        return;
+      }
+      api.updateOffering(draft as Offering);
+      setSemester(draft.semester);
+    } else api.addOffering(draft);
     setDraft(null);
   };
 
@@ -205,6 +331,7 @@ function AssignByClass({ api }: Props) {
           <table>
             <thead>
               <tr>
+                <th className="num">ลำดับ</th>
                 <th>รหัส</th>
                 <th>ชื่อวิชา</th>
                 <th>ประเภท</th>
@@ -217,11 +344,12 @@ function AssignByClass({ api }: Props) {
               </tr>
             </thead>
             <tbody>
-              {visibleRows.map((o) => {
+              {visibleRows.map((o, index) => {
                 const s = sMap.get(o.subjectId);
                 if (!s) return null;
                 return (
                   <tr key={o.id}>
+                    <td className="num">{index + 1}</td>
                     <td>{s.code}</td>
                     <td>{s.name}</td>
                     <td><span className={`badge ${s.type === 'พื้นฐาน' ? 'base' : s.type === 'เพิ่มเติม' ? 'add' : 'activity'}`}>{s.type}</span></td>
@@ -263,6 +391,41 @@ function AssignByClass({ api }: Props) {
 
       {draft && currentClass && (
         <Modal title={draft.id ? 'แก้ไขการจัดสอน' : `เพิ่มวิชาให้ ${classLabel(currentClass, true)}`} onClose={() => setDraft(null)}>
+          {!draft.id && (
+            <div className="field">
+              <label>ค้นหารายวิชา</label>
+              <input
+                autoFocus
+                value={addSubjectSearch}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const q = value.trim().toLowerCase();
+                  const matches = q
+                    ? available.filter((subject) =>
+                      [subject.code, subject.name, subject.area, subject.type]
+                        .join(' ')
+                        .toLowerCase()
+                        .includes(q),
+                    )
+                    : available;
+                  const first = matches[0];
+                  setAddSubjectSearch(value);
+                  if (!matches.some((subject) => subject.id === draft.subjectId)) {
+                    setDraft({
+                      ...draft,
+                      subjectId: first?.id ?? '',
+                      teacherId: first ? suggestTeacher(first.id) : undefined,
+                    });
+                    setErr('');
+                  }
+                }}
+                placeholder="🔍 รหัส / ชื่อวิชา / กลุ่มสาระ / ประเภท"
+              />
+              <span className="muted" style={{ fontSize: '0.8rem' }}>
+                พบ {filteredAvailable.length} จาก {available.length} วิชา
+              </span>
+            </div>
+          )}
           <div className="field">
             <label>รายวิชา</label>
             {draft.id ? (
@@ -275,11 +438,21 @@ function AssignByClass({ api }: Props) {
                   setDraft({ ...draft, subjectId, teacherId: draft.teacherId ?? suggestTeacher(subjectId) });
                 }}
               >
-                {available.map((s) => (
+                {filteredAvailable.map((s) => (
                   <option key={s.id} value={s.id}>{s.code} — {s.name} ({s.type} {s.credits} นก.)</option>
                 ))}
               </select>
             )}
+          </div>
+          {!draft.id && filteredAvailable.length === 0 && (
+            <p style={{ color: 'var(--danger)', margin: '-0.4rem 0 0.75rem' }}>ไม่พบรายวิชาที่ตรงกับคำค้น</p>
+          )}
+          <div className="field">
+            <label>ภาคเรียน</label>
+            <select value={draft.semester} onChange={(e) => { setErr(''); setDraft({ ...draft, semester: Number(e.target.value) as Semester }); }}>
+              <option value={1}>ภาคเรียนที่ 1</option>
+              <option value={2}>ภาคเรียนที่ 2</option>
+            </select>
           </div>
           <div className="form-row">
             <div className="field">
@@ -331,7 +504,7 @@ function AssignByClass({ api }: Props) {
           {err && <p style={{ color: 'var(--danger)', margin: '0.25rem 0 0' }}>{err}</p>}
           <div className="modal-actions">
             <button className="btn" onClick={() => setDraft(null)}>ยกเลิก</button>
-            <button className="btn primary" onClick={save}>บันทึก</button>
+            <button className="btn primary" onClick={save} disabled={!draft.subjectId}>บันทึก</button>
           </div>
         </Modal>
       )}

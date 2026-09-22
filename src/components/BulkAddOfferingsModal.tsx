@@ -65,8 +65,7 @@ export function BulkAddOfferingsModal({ api, classId, semester, onDone, onClose 
   const add = () => {
     const ids = [...selected];
     if (ids.length === 0) return;
-    for (const sid of ids) {
-      api.addOffering({
+    api.addOfferings(ids.map((sid) => ({
         classId,
         subjectId: sid,
         semester,
@@ -74,8 +73,7 @@ export function BulkAddOfferingsModal({ api, classId, semester, onDone, onClose 
         periods: undefined,
         room: '',
         group: group.trim() || undefined,
-      });
-    }
+      })));
     onDone(`เพิ่ม ${ids.length} วิชาให้ ${currentClass ? classLabel(currentClass) : ''} (ภาคเรียนที่ ${semester}) แล้ว`);
     onClose();
   };

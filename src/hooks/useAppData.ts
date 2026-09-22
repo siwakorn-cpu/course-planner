@@ -8,10 +8,24 @@ import { gradeToLevel } from '../types';
 import { emptyData, loadData, saveData } from '../storage';
 import { promoteAllData } from '../promote';
 import { seedData } from '../seedData';
+import { applyOfferingSemesterMove, planOfferingSemesterMove } from '../offeringSemester';
 
 /** id สุ่มแบบสั้น สำหรับข้อมูลที่ผู้ใช้เพิ่มเอง */
 export function newId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+export type NewOffering = Omit<Offering, 'id' | 'batchId' | 'createdAt'>;
+
+export interface OfferingBatchResult {
+  batchId: string;
+  ids: string[];
+}
+
+export interface OfferingSemesterMoveResult {
+  movedIds: string[];
+  conflictIds: string[];
+  unchangedIds: string[];
 }
 
 export interface AppDataApi {
@@ -40,9 +54,11 @@ export interface AppDataApi {
   /** เลื่อนชั้นทุกห้อง (ขึ้นปีการศึกษาใหม่) — คืนจำนวนที่เลื่อน/จบ */
   promoteAll: () => { promotedCount: number; graduatedCount: number };
   // การจัดสอน
-  addOffering: (o: Omit<Offering, 'id'>) => void;
+  addOffering: (o: NewOffering) => OfferingBatchResult;
+  addOfferings: (offerings: NewOffering[]) => OfferingBatchResult;
   updateOffering: (o: Offering) => void;
   removeOffering: (id: string) => void;
+  moveOfferingsToSemester: (ids: string[], targetSemester: Offering['semester']) => OfferingSemesterMoveResult;
   // กลุ่มห้องควบ
   addCoupledGroup: (g: Omit<CoupledClassGroup, 'id'>) => void;
   updateCoupledGroup: (g: CoupledClassGroup) => void;
@@ -242,9 +258,24 @@ export function useAppData(): AppDataApi {
     });
   }, []);
 
-  const addOffering = useCallback((o: Omit<Offering, 'id'>) => {
-    setData((d) => ({ ...d, offerings: [...d.offerings, { ...o, id: newId('off') }] }));
+  const addOfferings = useCallback((offerings: NewOffering[]): OfferingBatchResult => {
+    const batchId = newId('batch');
+    const createdAt = new Date().toISOString();
+    const created: Offering[] = offerings.map((offering) => ({
+      ...offering,
+      id: newId('off'),
+      batchId,
+      createdAt,
+    }));
+    if (created.length > 0) {
+      setData((d) => ({ ...d, offerings: [...d.offerings, ...created] }));
+    }
+    return { batchId, ids: created.map((offering) => offering.id) };
   }, []);
+
+  const addOffering = useCallback((offering: NewOffering): OfferingBatchResult => (
+    addOfferings([offering])
+  ), [addOfferings]);
 
   const updateOffering = useCallback((o: Offering) => {
     setData((d) => ({ ...d, offerings: d.offerings.map((x) => (x.id === o.id ? o : x)) }));
@@ -252,6 +283,21 @@ export function useAppData(): AppDataApi {
 
   const removeOffering = useCallback((id: string) => {
     setData((d) => ({ ...d, offerings: d.offerings.filter((x) => x.id !== id) }));
+  }, []);
+
+  const moveOfferingsToSemester = useCallback((ids: string[], targetSemester: Offering['semester']): OfferingSemesterMoveResult => {
+    const current = dataRef.current;
+    const plan = planOfferingSemesterMove(current.offerings, ids, targetSemester);
+    if (plan.movableIds.length > 0) {
+      const next = { ...current, offerings: applyOfferingSemesterMove(current.offerings, plan) };
+      dataRef.current = next;
+      setData(next);
+    }
+    return {
+      movedIds: plan.movableIds,
+      conflictIds: plan.conflictIds,
+      unchangedIds: plan.unchangedIds,
+    };
   }, []);
 
   const addCoupledGroup = useCallback((g: Omit<CoupledClassGroup, 'id'>) => {
@@ -348,8 +394,10 @@ export function useAppData(): AppDataApi {
     importCompleted,
     promoteAll,
     addOffering,
+    addOfferings,
     updateOffering,
     removeOffering,
+    moveOfferingsToSemester,
     addCoupledGroup,
     updateCoupledGroup,
     removeCoupledGroup,

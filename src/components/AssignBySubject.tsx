@@ -8,6 +8,7 @@ import { compareAreas, type Level, type Offering, type Semester, type SubjectTyp
 import { classElectiveGroups, classLabel, classLevel, subjectMap, subRoomGroups } from '../calculations';
 import { Modal } from './common/Modal';
 import { ConfirmDialog, type ConfirmState } from './common/ConfirmDialog';
+import { findOfferingConflict } from '../offeringSemester';
 
 interface Props {
   api: AppDataApi;
@@ -27,6 +28,7 @@ export function AssignBySubject({ api }: Props) {
   const [msg, setMsg] = useState('');
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [editing, setEditing] = useState<Offering | null>(null);
+  const [editErr, setEditErr] = useState('');
 
   const sMap = useMemo(() => subjectMap(data.subjects), [data.subjects]);
 
@@ -123,16 +125,18 @@ export function AssignBySubject({ api }: Props) {
     if (!roomIds.length || !subjIds.length) return;
     let added = 0;
     let skipped = 0;
+    const additions = [];
     for (const r of roomIds) {
       for (const sid of subjIds) {
         if (offeringExists(r, sid)) {
           skipped++;
           continue;
         }
-        api.addOffering({ classId: r, subjectId: sid, semester, teacherId, periods: undefined, room: '', group: group.trim() || undefined });
+        additions.push({ classId: r, subjectId: sid, semester, teacherId, periods: undefined, room: '', group: group.trim() || undefined });
         added++;
       }
     }
+    api.addOfferings(additions);
     setMsg(`เพิ่ม ${added} รายการ (ภาคเรียนที่ ${semester})${skipped ? ` · ข้ามที่จัดแล้ว ${skipped}` : ''}`);
     setSelectedRooms(new Set());
     setTimeout(() => setMsg(''), 3500);
@@ -157,8 +161,14 @@ export function AssignBySubject({ api }: Props) {
 
   const saveEdit = () => {
     if (!editing) return;
+    if (findOfferingConflict(data.offerings, editing)) {
+      setEditErr('ภาคเรียนปลายทางมีวิชานี้สำหรับห้องและกลุ่มเดียวกันอยู่แล้ว กรุณาเลือกภาคเรียนอื่น');
+      return;
+    }
     api.updateOffering(editing);
+    setSemester(editing.semester);
     setEditing(null);
+    setEditErr('');
     setMsg('บันทึกการแก้ไขแล้ว');
     setTimeout(() => setMsg(''), 2500);
   };
@@ -303,7 +313,7 @@ export function AssignBySubject({ api }: Props) {
                       <div key={c.id} className="row-gap" style={{ ...boxStyle, background: 'var(--success-weak)' }}>
                         {info}
                         <span className="badge ok">จัดแล้ว</span>
-                        {offs.length === 1 && <button className="btn small ghost" onClick={() => setEditing({ ...offs[0] })}>แก้ไข</button>}
+                        {offs.length === 1 && <button className="btn small ghost" onClick={() => { setEditErr(''); setEditing({ ...offs[0] }); }}>แก้ไข</button>}
                         <button className="btn small ghost" onClick={() => cancelForClass(c.id, label)}>ยกเลิก</button>
                       </div>
                     );
@@ -345,7 +355,14 @@ export function AssignBySubject({ api }: Props) {
         ].sort((a, b) => a.localeCompare(b, 'th'));
         return (
           <Modal title={`แก้ไขการจัดสอน — ${cls ? classLabel(cls, true) : ''}`} onClose={() => setEditing(null)}>
-            <p className="muted" style={{ marginTop: 0 }}>{subj ? `${subj.code} ${subj.name}` : ''} · ภาคเรียนที่ {editing.semester}</p>
+            <p className="muted" style={{ marginTop: 0 }}>{subj ? `${subj.code} ${subj.name}` : ''}</p>
+            <div className="field">
+              <label>ภาคเรียน</label>
+              <select value={editing.semester} onChange={(e) => { setEditErr(''); setEditing({ ...editing, semester: Number(e.target.value) as Semester }); }}>
+                <option value={1}>ภาคเรียนที่ 1</option>
+                <option value={2}>ภาคเรียนที่ 2</option>
+              </select>
+            </div>
             <div className="field">
               <label>ครูผู้สอน</label>
               <select value={editing.teacherId ?? ''} onChange={(e) => setEditing({ ...editing, teacherId: e.target.value === '' ? undefined : e.target.value })}>
@@ -372,6 +389,7 @@ export function AssignBySubject({ api }: Props) {
                 {groupOptions.map((g) => (<option key={g} value={g} />))}
               </datalist>
             </div>
+            {editErr && <p style={{ color: 'var(--danger)', margin: '0.25rem 0 0' }}>{editErr}</p>}
             <div className="modal-actions">
               <button className="btn" onClick={() => setEditing(null)}>ยกเลิก</button>
               <button className="btn primary" onClick={saveEdit}>บันทึก</button>
