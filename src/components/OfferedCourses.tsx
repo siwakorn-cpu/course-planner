@@ -1,0 +1,54 @@
+import { useState } from 'react';
+import type { AppDataApi } from '../hooks/useAppData';
+import type { Semester } from '../types';
+import { PrintOfferingsReport } from './PrintOfferingsReport';
+
+interface Props {
+  api: AppDataApi;
+}
+
+export function OfferedCourses({ api }: Props) {
+  const [semester, setSemester] = useState<Semester>(1);
+  const [academicYear, setAcademicYear] = useState(() => String(new Date().getFullYear() + 543));
+
+  return (
+    <div className="offered-courses-page">
+      <div className="page-head">
+        <h2>📋 แสดงรายวิชาที่เปิดสอน</h2>
+        <p>แสดงเฉพาะรายวิชาที่จัดให้ห้องเรียนแล้ว แยกตามกลุ่มสาระ</p>
+      </div>
+
+      <div className="toolbar offered-courses-toolbar">
+        <div className="pill-group" aria-label="เลือกภาคเรียน">
+          <button className={semester === 1 ? 'active' : ''} onClick={() => setSemester(1)}>ภาคเรียนที่ 1</button>
+          <button className={semester === 2 ? 'active' : ''} onClick={() => setSemester(2)}>ภาคเรียนที่ 2</button>
+        </div>
+        <label className="offered-year-field">
+          <span>ปีการศึกษา</span>
+          <input
+            value={academicYear}
+            inputMode="numeric"
+            onChange={(event) => setAcademicYear(event.target.value)}
+            placeholder="เช่น 2569"
+          />
+        </label>
+        <span className="spacer" />
+        <button className="btn primary" onClick={() => window.print()} disabled={!academicYear.trim()}>
+          🖨️ Print รายงาน
+        </button>
+      </div>
+
+      <div className="card coupled-help offered-help">
+        <strong>การนับจำนวนห้อง</strong>
+        <span>ห้องควบที่เรียนรวมกันนับเป็น 1 ชุดสอน · คาบ/ภาคเรียน = คาบ/สัปดาห์ × 20</span>
+      </div>
+
+      <PrintOfferingsReport
+        data={api.data}
+        semester={semester}
+        academicYear={academicYear.trim()}
+        screenVisible
+      />
+    </div>
+  );
+}

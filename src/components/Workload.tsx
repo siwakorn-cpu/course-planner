@@ -37,6 +37,15 @@ export function Workload({ api }: Props) {
     [data.offerings, data.subjects, data.settings, data.coupledGroups, filter],
   );
 
+  const teacherCountByArea = useMemo(() => {
+    const counts = new Map<Area, number>();
+    for (const teacher of data.teachers) {
+      if (!teacher.area) continue;
+      counts.set(teacher.area, (counts.get(teacher.area) ?? 0) + 1);
+    }
+    return counts;
+  }, [data.teachers]);
+
   const totals = workload.reduce(
     (acc, w) => {
       acc.periods += w.periods;
@@ -71,18 +80,34 @@ export function Workload({ api }: Props) {
   }, [openArea, data.offerings, data.subjects, data.coupledGroups, classMap, tMap, filter]);
 
   const exportCsv = () => {
-    const headers = ['กลุ่มสาระ', 'จำนวนวิชาที่จัด', 'คาบรวม/สัปดาห์', 'ครูที่ต้องใช้ (ปัดขึ้น)', 'ครูที่ต้องใช้ (ทศนิยม)'];
-    const rows = workload.map((w) => [w.area, w.offeringsCount, w.periods, w.teachersRounded, w.teachersNeeded.toFixed(2)]);
-    rows.push(['รวมทั้งหมด', workload.reduce((a, w) => a + w.offeringsCount, 0), totals.periods, totals.teachers, (totals.periods / (data.settings.teacherLoad || 1)).toFixed(2)]);
+    const headers = [
+      'กลุ่มสาระ', 'จำนวนวิชาที่จัด', 'คาบรวม/สัปดาห์',
+      'จำนวนครูในกลุ่มสาระ', 'คาบเฉลี่ยต่อครูในกลุ่มสาระ',
+      'ครูที่ต้องใช้ (ปัดขึ้น)', 'ครูที่ต้องใช้ (ทศนิยม)',
+    ];
+    const rows = workload.map((w) => {
+      const teacherCount = teacherCountByArea.get(w.area) ?? 0;
+      return [
+        w.area, w.offeringsCount, w.periods, teacherCount,
+        teacherCount > 0 ? (w.periods / teacherCount).toFixed(2) : '',
+        w.teachersRounded, w.teachersNeeded.toFixed(2),
+      ];
+    });
+    const registeredTeachers = [...teacherCountByArea.values()].reduce((sum, count) => sum + count, 0);
+    rows.push([
+      'รวมทั้งหมด', workload.reduce((a, w) => a + w.offeringsCount, 0), totals.periods, registeredTeachers,
+      registeredTeachers > 0 ? (totals.periods / registeredTeachers).toFixed(2) : '',
+      totals.teachers, (totals.periods / (data.settings.teacherLoad || 1)).toFixed(2),
+    ]);
     const label = filter === 'ปี' ? 'ทั้งปี' : `ภาคเรียน${filter}`;
     downloadCsv(`ภาระงานกลุ่มสาระ-${label}.csv`, headers, rows);
   };
 
   return (
-    <div>
+    <div className="workload-page">
       <div className="page-head">
         <h2>👩‍🏫 ภาระงาน & อัตรากำลัง</h2>
-        <p>คาบสอนรวมของแต่ละกลุ่มสาระ และจำนวนครูที่ต้องใช้โดยประมาณ (ภาระงานมาตรฐาน {data.settings.teacherLoad} คาบ/คน — แก้ได้ในตั้งค่า)</p>
+        <p>คาบสอนรวม คาบเฉลี่ยต่อครูในกลุ่มสาระ และจำนวนครูที่ต้องใช้โดยประมาณ (ภาระงานมาตรฐาน {data.settings.teacherLoad} คาบ/คน)</p>
       </div>
 
       <div className="toolbar">
@@ -118,6 +143,7 @@ export function Workload({ api }: Props) {
               <th>กลุ่มสาระ</th>
               <th className="num">วิชาที่จัด</th>
               <th className="num">คาบรวม/สัปดาห์</th>
+              <th className="num">คาบเฉลี่ย/ครูในกลุ่มสาระ</th>
               <th className="num">ครูที่ต้องใช้</th>
               <th></th>
             </tr>
@@ -128,6 +154,13 @@ export function Workload({ api }: Props) {
                 <td>{w.area}</td>
                 <td className="num">{w.offeringsCount}</td>
                 <td className="num">{w.periods}</td>
+                <td className="num">
+                  {(teacherCountByArea.get(w.area) ?? 0) > 0 ? (
+                    <><strong>{(w.periods / (teacherCountByArea.get(w.area) ?? 1)).toFixed(2)}</strong> <span className="muted">({teacherCountByArea.get(w.area)} คน)</span></>
+                  ) : (
+                    <span className="muted">— (ยังไม่ระบุกลุ่มสาระของครู)</span>
+                  )}
+                </td>
                 <td className="num">
                   <strong>{w.teachersRounded}</strong> <span className="muted">({w.teachersNeeded.toFixed(2)})</span>
                 </td>
@@ -216,6 +249,7 @@ export function Workload({ api }: Props) {
           )}
         </div>
       )}
+
     </div>
   );
 }

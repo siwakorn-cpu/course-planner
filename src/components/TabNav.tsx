@@ -5,6 +5,7 @@ export const TABS = [
   { id: 'classes', label: 'ห้องเรียน', icon: '🏫' },
   { id: 'offerings', label: 'จัดรายวิชา', icon: '🗂️' },
   { id: 'coupled', label: 'จับคู่ห้องควบ', icon: '🔗' },
+  { id: 'offered', label: 'แสดงรายวิชาที่เปิดสอน', icon: '📋' },
   { id: 'teachers', label: 'ครูผู้สอน', icon: '🧑‍🏫' },
   { id: 'cumulative', label: 'หน่วยกิตรวมสะสม', icon: '🎯' },
   { id: 'workload', label: 'ภาระงาน & อัตรากำลัง', icon: '👩‍🏫' },

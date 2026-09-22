@@ -7,6 +7,7 @@ import { Subjects } from './components/Subjects';
 import { Classes } from './components/Classes';
 import { CoupledClasses } from './components/CoupledClasses';
 import { Offerings } from './components/Offerings';
+import { OfferedCourses } from './components/OfferedCourses';
 import { Teachers } from './components/Teachers';
 import { CumulativeCredits } from './components/CumulativeCredits';
 import { Workload } from './components/Workload';
@@ -51,6 +52,7 @@ export default function App() {
         {tab === 'classes' && <Classes api={api} />}
         {tab === 'coupled' && <CoupledClasses api={api} />}
         {tab === 'offerings' && <Offerings api={api} />}
+        {tab === 'offered' && <OfferedCourses api={api} />}
         {tab === 'teachers' && <Teachers api={api} />}
         {tab === 'cumulative' && <CumulativeCredits api={api} />}
         {tab === 'workload' && <Workload api={api} />}

@@ -328,6 +328,22 @@ export interface TeachingUnit {
   coupledGroupId?: string;
 }
 
+/** แถวรายวิชาสำหรับรายงานพิมพ์ รวมห้องที่มีรายวิชาและจำนวนคาบต่อสัปดาห์ตรงกัน */
+export interface SubjectPrintRow {
+  area: Area;
+  subjectId: string;
+  code: string;
+  name: string;
+  type: SubjectType;
+  credits: number;
+  periodsPerWeek: number;
+  periodsPerTerm: number;
+  classNames: string;
+  teachingGroupCount: number;
+  totalPeriods: number;
+  notes: string;
+}
+
 /**
  * รวม Offering ที่เป็นการสอนครั้งเดียวกันของห้องควบ
  * จะรวมเฉพาะเมื่อกลุ่มห้อง รายวิชา ภาคเรียน ครู และกลุ่มเลือกตรงกัน
@@ -376,6 +392,70 @@ export function teachingUnits(
     }
   }
   return [...units.values()];
+}
+
+const TERM_WEEKS = 20;
+
+function printClassName(classroom: ClassRoom): string {
+  return `${classroom.grade.replace('ม.', '')}/${classroom.section}`;
+}
+
+/**
+ * สร้างแถวรายงาน "รายวิชาที่เปิดสอน" ตามโครงสร้างไฟล์ตัวอย่าง
+ * - ห้องควบที่เรียนรวมนับเป็น 1 ชุดสอน
+ * - แยกแถวเมื่อวิชาเดียวกันกำหนดคาบ/สัปดาห์ต่างกัน เพื่อให้จำนวนคาบคำนวณได้ตรง
+ */
+export function subjectPrintRows(
+  offerings: Offering[],
+  subjects: Subject[],
+  classes: ClassRoom[],
+  coupledGroups: CoupledClassGroup[],
+  semester: Semester,
+): SubjectPrintRow[] {
+  const classMap = new Map(classes.map((classroom) => [classroom.id, classroom]));
+  const grouped = new Map<string, { subject: Subject; periods: number; units: TeachingUnit[] }>();
+
+  for (const unit of teachingUnits(offerings, subjects, coupledGroups, semester)) {
+    const key = `${unit.subject.id}::${unit.periods}`;
+    const bucket = grouped.get(key) ?? { subject: unit.subject, periods: unit.periods, units: [] };
+    bucket.units.push(unit);
+    grouped.set(key, bucket);
+  }
+
+  return [...grouped.values()]
+    .map(({ subject, periods, units }) => {
+      const classEntries = units.map((unit) => {
+        const labels = unit.classIds
+          .map((id) => classMap.get(id))
+          .filter((classroom): classroom is ClassRoom => !!classroom)
+          .sort((a, b) => a.grade.localeCompare(b.grade, 'th') || a.section.localeCompare(b.section, 'th'))
+          .map(printClassName);
+        const classText = labels.length > 0 ? labels.join('+') : '(ไม่พบห้อง)';
+        return {
+          classText: unit.group?.trim() ? `${classText} (${unit.group.trim()})` : classText,
+          note: unit.classIds.length > 1 ? `ควบรวม ${labels.join('+')}` : '',
+        };
+      });
+      classEntries.sort((a, b) => a.classText.localeCompare(b.classText, 'th', { numeric: true }));
+      const notes = [...new Set(classEntries.map((entry) => entry.note).filter(Boolean))];
+      return {
+        area: subject.area,
+        subjectId: subject.id,
+        code: subject.code,
+        name: subject.name,
+        type: subject.type,
+        credits: subject.credits,
+        periodsPerWeek: periods,
+        periodsPerTerm: periods * TERM_WEEKS,
+        classNames: classEntries.map((entry) => entry.classText).join(', '),
+        teachingGroupCount: units.length,
+        totalPeriods: units.reduce((sum, unit) => sum + unit.periods, 0),
+        notes: notes.join('; '),
+      };
+    })
+    .sort((a, b) => compareAreas(a.area, b.area)
+      || a.code.localeCompare(b.code, 'th', { numeric: true })
+      || a.periodsPerWeek - b.periodsPerWeek);
 }
 
 /**

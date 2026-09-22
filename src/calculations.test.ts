@@ -15,6 +15,7 @@ import {
   isClassComplete,
   offeringPeriods,
   periodsToCredits,
+  subjectPrintRows,
   teacherWorkloadInArea,
   teacherWorkloadTotals,
   totalPeriods,
@@ -25,6 +26,7 @@ import {
   AREAS,
   compareAreas,
   DEFAULT_SETTINGS,
+  type ClassRoom,
   type Offering,
   type Settings,
   type Subject,
@@ -234,6 +236,10 @@ describe('การนับคาบห้องควบ', () => {
     { id: 'joint-2', classId: 'c2', subjectId: 's1', semester: 1, teacherId: 't1' },
   ];
   const coupled = [{ id: 'cg1', name: 'ห้องควบ', classIds: ['c1', 'c2'], jointSubjectIds: ['s1'] }];
+  const classes: ClassRoom[] = [
+    { id: 'c1', grade: 'ม.1', section: '1', plan: '', students: 40, cohort: '' },
+    { id: 'c2', grade: 'ม.1', section: '2', plan: '', students: 40, cohort: '' },
+  ];
 
   it('วิชาเรียนรวมกันของครูคนเดียวนับเพียงหนึ่งชุดคาบ', () => {
     const load = workloadByArea(sameSubjectOfferings, subjects, settings, 1, coupled);
@@ -255,6 +261,25 @@ describe('การนับคาบห้องควบ', () => {
   it('ภาระงานรายครูของห้องควบนับคาบครั้งเดียว', () => {
     const rows = teacherWorkloadTotals(sameSubjectOfferings, subjects, [{ id: 't1', name: 'ครูก' }], 1, coupled);
     expect(rows.find((x) => x.teacherId === 't1')).toMatchObject({ periods: 3, offeringsCount: 1 });
+  });
+
+  it('รายงานพิมพ์นับห้องควบเป็นหนึ่งชุดสอน', () => {
+    const rows = subjectPrintRows(sameSubjectOfferings, subjects, classes, coupled, 1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      code: 'ค',
+      periodsPerWeek: 3,
+      periodsPerTerm: 60,
+      classNames: '1/1+1/2',
+      teachingGroupCount: 1,
+      totalPeriods: 3,
+      notes: 'ควบรวม 1/1+1/2',
+    });
+  });
+
+  it('รายงานพิมพ์นับห้องที่เรียนแยกกันเป็นคนละชุด', () => {
+    const rows = subjectPrintRows(sameSubjectOfferings, subjects, classes, [], 1);
+    expect(rows[0]).toMatchObject({ teachingGroupCount: 2, totalPeriods: 6, classNames: '1/1, 1/2' });
   });
 });
 

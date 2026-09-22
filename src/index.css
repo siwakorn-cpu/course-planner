@@ -726,3 +726,242 @@ th.sortable:hover { color: var(--text); }
   .bar-chart .bar-row { grid-template-columns: 110px 1fr 46px; font-size: 0.82rem; }
   .app-main { padding: 1rem 0.75rem 3rem; }
 }
+
+/* ---------- รายงานรายวิชาสำหรับ Print ---------- */
+.print-report {
+  display: none;
+}
+
+.print-report-visible {
+  display: grid;
+  gap: 1rem;
+}
+
+.offered-courses-toolbar {
+  align-items: end;
+}
+
+.offered-year-field {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.offered-year-field input {
+  width: 110px;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.offered-help {
+  margin-bottom: 1rem;
+}
+
+.print-report-visible .print-area-section {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.print-report-visible .print-report-head {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+
+.print-report-visible .print-report-head h1 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+
+.print-report-visible .print-report-head p {
+  margin: 0.12rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.print-report-visible .print-report-head p:nth-of-type(2) {
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.print-course-table-wrap {
+  overflow-x: auto;
+}
+
+.print-report-visible .print-course-table {
+  min-width: 1120px;
+  font-size: 0.82rem;
+}
+
+.print-report-visible .print-course-table th,
+.print-report-visible .print-course-table td {
+  padding: 0.42rem 0.5rem;
+  white-space: normal;
+  vertical-align: top;
+}
+
+.print-report-visible .print-course-table th {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.print-report-visible .print-course-table .print-num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.print-report-visible .print-total-row td {
+  background: var(--surface-2);
+  font-weight: 700;
+  text-align: right;
+}
+
+.print-report-visible .print-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.print-col-order { width: 4%; }
+.print-col-code { width: 8%; }
+.print-col-name { width: 17%; }
+.print-col-type { width: 9%; }
+.print-col-credit { width: 6%; }
+.print-col-period { width: 7%; }
+.print-col-term { width: 7%; }
+.print-col-class { width: 17%; }
+.print-col-count { width: 6%; }
+.print-col-total { width: 6%; }
+.print-col-note { width: 13%; }
+
+@page {
+  size: A4 landscape;
+  margin: 9mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .app-header,
+  .offered-courses-page > :not(.print-report) {
+    display: none !important;
+  }
+
+  .app-shell,
+  .app-main,
+  .offered-courses-page {
+    display: block;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-report {
+    display: block !important;
+  }
+
+  .print-course-table-wrap {
+    overflow: visible;
+  }
+
+  .print-area-section {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .print-area-section:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .print-report-head {
+    margin-bottom: 3mm;
+    text-align: center;
+  }
+
+  .print-report-head h1 {
+    margin: 0;
+    font-size: 15pt;
+  }
+
+  .print-report-head p {
+    margin: 0.4mm 0 0;
+    font-size: 10pt;
+    line-height: 1.25;
+  }
+
+  .print-report-head p:nth-of-type(2) {
+    font-weight: 700;
+    font-size: 11pt;
+  }
+
+  .print-course-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 8.2pt;
+    line-height: 1.2;
+  }
+
+  .print-course-table thead {
+    display: table-header-group;
+  }
+
+  .print-course-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-course-table th,
+  .print-course-table td {
+    position: static;
+    padding: 1.5mm 1.2mm;
+    border: 0.25mm solid #444;
+    color: #000;
+    background: #fff;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+
+  .print-course-table th {
+    background: #e8e8e8 !important;
+    text-align: center;
+    vertical-align: middle;
+    font-weight: 700;
+  }
+
+  .print-course-table .print-num {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .print-course-table .print-empty {
+    padding: 8mm;
+    text-align: center;
+  }
+
+  .print-course-table .print-total-row td {
+    background: #f2f2f2 !important;
+    font-weight: 700;
+    text-align: right;
+  }
+
+}
