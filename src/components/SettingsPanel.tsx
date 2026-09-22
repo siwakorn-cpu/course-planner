@@ -186,6 +186,31 @@ export function SettingsPanel({ api }: Props) {
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: '1rem', borderColor: 'var(--primary)' }}>
+        <h3 className="section-title" style={{ marginTop: 0 }}>🧪 ข้อมูลตัวอย่าง</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          โหลดชุดทดลองที่มีรายวิชาครบ 9 กลุ่มสาระ ห้องเรียน ครู การจัดสอน กลุ่มเลือก และหน่วยกิตสะสม
+        </p>
+        <button
+          className="btn primary"
+          onClick={() =>
+            setConfirmState({
+              title: 'โหลดข้อมูลตัวอย่าง',
+              message: 'ข้อมูลตัวอย่างจะเขียนทับข้อมูลปัจจุบันทั้งหมด\nแนะนำให้ Export สำรองก่อน ต้องการดำเนินการต่อหรือไม่?',
+              confirmLabel: 'โหลดชุดตัวอย่าง',
+              onConfirm: () => {
+                api.loadSampleData();
+                setDraft(structuredClone(DEFAULT_SETTINGS));
+                setMsg('โหลดข้อมูลตัวอย่างแล้ว ✓');
+                setTimeout(() => setMsg(''), 2500);
+              },
+            })
+          }
+        >
+          🧪 โหลดข้อมูลตัวอย่าง
+        </button>
+      </div>
+
       <div className="card" style={{ borderColor: 'var(--danger)' }}>
         <h3 className="section-title" style={{ marginTop: 0, color: 'var(--danger)' }}>ล้างข้อมูล & เริ่มใหม่</h3>
         <p className="muted" style={{ marginTop: 0 }}>ลบข้อมูลทั้งหมดให้ว่างเปล่า เริ่มต้นใหม่จากศูนย์ (ไม่มีข้อมูลตัวอย่างกลับมา — แนะนำให้ Export สำรองไว้ก่อน)</p>

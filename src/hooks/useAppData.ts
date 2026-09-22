@@ -7,6 +7,7 @@ import type { AppData, ClassRoom, CompletedCourse, Level, Offering, Settings, Su
 import { gradeToLevel } from '../types';
 import { emptyData, loadData, saveData } from '../storage';
 import { promoteAllData } from '../promote';
+import { seedData } from '../seedData';
 
 /** id สุ่มแบบสั้น สำหรับข้อมูลที่ผู้ใช้เพิ่มเอง */
 export function newId(prefix: string): string {
@@ -56,6 +57,7 @@ export interface AppDataApi {
   // ทั้งก้อน
   replaceAll: (d: AppData) => void;
   resetAll: () => void;
+  loadSampleData: () => void;
 }
 
 export function useAppData(): AppDataApi {
@@ -303,6 +305,7 @@ export function useAppData(): AppDataApi {
   const replaceAll = useCallback((d: AppData) => setData(d), []);
 
   const resetAll = useCallback(() => setData(emptyData()), []);
+  const loadSampleData = useCallback(() => setData(seedData()), []);
 
   return {
     data,
@@ -333,5 +336,6 @@ export function useAppData(): AppDataApi {
     updateSettings,
     replaceAll,
     resetAll,
+    loadSampleData,
   };
 }

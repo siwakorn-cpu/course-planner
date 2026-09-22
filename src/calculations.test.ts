@@ -162,6 +162,23 @@ describe('ห้องรวม/กลุ่มย่อยอัตโนมั
     // กลุ่มอื่นที่ไม่มีวิชา -> เห็นเฉพาะวิชาร่วม (s1 + เดิม) = 2
     expect(coursesForClass('c1', offs, subs, done, '5/6')).toHaveLength(2);
   });
+
+  it('coursesForClass เรียงรายวิชาตามลำดับกลุ่มสาระ', () => {
+    const offs = [
+      { id: 'o-sci', classId: 'c1', subjectId: 's2', semester: 1 as const },
+      { id: 'o-math', classId: 'c1', subjectId: 's1', semester: 1 as const },
+    ];
+    const done = [
+      { id: 'd-eng', classId: 'c1', code: 'อ30101', name: 'อังกฤษเดิม', credits: 1, type: 'พื้นฐาน' as const },
+      { id: 'd-thai', classId: 'c1', code: 'ท30101', name: 'ไทยเดิม', credits: 1, type: 'พื้นฐาน' as const },
+    ];
+    expect(coursesForClass('c1', offs, subjects, done).map((x) => x.area)).toEqual([
+      'ภาษาไทย',
+      'คณิตศาสตร์',
+      'วิทยาศาสตร์และเทคโนโลยี',
+      'ภาษาต่างประเทศ',
+    ]);
+  });
 });
 
 describe('เกณฑ์การจบ', () => {

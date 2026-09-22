@@ -43,13 +43,14 @@ function CourseTable({ lines }: { lines: CourseLine[] }) {
     <div className="table-wrap" style={{ marginTop: '0.5rem' }}>
       <table>
         <thead>
-          <tr><th>รหัส</th><th>ชื่อวิชา</th><th>ประเภท</th><th className="num">นก.</th><th>ที่มา</th></tr>
+          <tr><th>รหัส</th><th>ชื่อวิชา</th><th>กลุ่มสาระ</th><th>ประเภท</th><th className="num">นก.</th><th>ที่มา</th></tr>
         </thead>
         <tbody>
           {lines.map((l, i) => (
             <tr key={`${l.code}-${i}`}>
               <td>{l.code}</td>
               <td>{l.name}</td>
+              <td>{l.area ?? <span className="muted">—</span>}</td>
               <td><span className={`badge ${l.type === 'พื้นฐาน' ? 'base' : l.type === 'เพิ่มเติม' ? 'add' : 'activity'}`}>{l.type}</span></td>
               <td className="num">{l.credits}</td>
               <td><span className="muted">{l.source}{l.group ? ` · ${l.group}` : ''}</span></td>

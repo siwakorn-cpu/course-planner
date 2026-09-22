@@ -4,6 +4,7 @@
 // ============================================================
 import {
   AREAS,
+  compareAreas,
   type Area,
   type ClassRoom,
   type CompletedCourse,
@@ -132,11 +133,29 @@ export function subRoomGroups(c: ClassRoom): string[] {
 export interface CourseLine {
   code: string;
   name: string;
+  area?: Area;
   credits: number;
   type: SubjectType;
   group?: string;
   source: 'เดิม' | 'ปีนี้';
   note?: string;
+}
+
+/** เดากลุ่มสาระจากอักษรนำหน้ารหัสวิชา สำหรับข้อมูลสะสมเก่าที่ไม่ได้เก็บกลุ่มสาระ */
+function areaFromCourseCode(code: string): Area | undefined {
+  const prefix = code.trim().charAt(0);
+  const byPrefix: Record<string, Area> = {
+    'ท': 'ภาษาไทย',
+    'ค': 'คณิตศาสตร์',
+    'ว': 'วิทยาศาสตร์และเทคโนโลยี',
+    'ส': 'สังคมศึกษาฯ',
+    'พ': 'สุขศึกษาและพลศึกษา',
+    'ศ': 'ศิลปะ',
+    'ง': 'การงานอาชีพ',
+    'อ': 'ภาษาต่างประเทศ',
+    'ก': 'กิจกรรมพัฒนาผู้เรียน',
+  };
+  return byPrefix[prefix];
 }
 
 /**
@@ -151,6 +170,7 @@ export function coursesForClass(
   group?: string,
 ): CourseLine[] {
   const sMap = subjectMap(subjects);
+  const subjectsByCode = new Map(subjects.map((s) => [s.code.trim().toLowerCase(), s]));
   const inGroup = (g?: string) => {
     const gg = g?.trim() ?? '';
     return group === undefined || gg === '' || gg === group;
@@ -158,15 +178,16 @@ export function coursesForClass(
   const lines: CourseLine[] = [];
   for (const c of completed) {
     if (c.classId !== classId || !inGroup(c.group)) continue;
-    lines.push({ code: c.code, name: c.name, credits: c.credits, type: c.type, group: c.group, source: 'เดิม', note: c.note });
+    const area = subjectsByCode.get(c.code.trim().toLowerCase())?.area ?? areaFromCourseCode(c.code);
+    lines.push({ code: c.code, name: c.name, area, credits: c.credits, type: c.type, group: c.group, source: 'เดิม', note: c.note });
   }
   for (const o of offerings) {
     if (o.classId !== classId || !inGroup(o.group)) continue;
     const s = sMap.get(o.subjectId);
     if (!s) continue;
-    lines.push({ code: s.code, name: s.name, credits: s.credits, type: s.type, group: o.group, source: 'ปีนี้' });
+    lines.push({ code: s.code, name: s.name, area: s.area, credits: s.credits, type: s.type, group: o.group, source: 'ปีนี้' });
   }
-  return lines;
+  return lines.sort((a, b) => compareAreas(a.area, b.area) || a.code.localeCompare(b.code, 'th'));
 }
 
 /** รายชื่อกลุ่มเลือกจากทั้งหน่วยกิตเดิมและการจัดสอนปัจจุบันของห้อง */
