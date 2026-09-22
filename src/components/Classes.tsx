@@ -71,6 +71,8 @@ export function Classes({ api }: Props) {
   const sorted = [...data.classes].sort((a, b) =>
     a.grade === b.grade ? a.section.localeCompare(b.section, 'th') : a.grade.localeCompare(b.grade, 'th'),
   );
+  const upperClasses = sorted.filter((c) => classLevel(c) === 'ม.ปลาย');
+  const lowerClasses = sorted.filter((c) => classLevel(c) === 'ม.ต้น');
 
   const toggleSel = (id: string) =>
     setSelectedIds((prev) => {
@@ -96,6 +98,68 @@ export function Classes({ api }: Props) {
         exitSelect();
       },
     });
+  };
+
+  const renderClassCard = (c: ClassRoom) => {
+    const groups = classElectiveGroups(c.id, data.offerings);
+    const hasGroups = groups.length > 0;
+    // ถ้ามีกลุ่มเลือก ให้แสดงหน่วยกิต "วิชาร่วม" (นับครั้งเดียว) กันตัวเลขเกินจริง
+    const sum = classCredits(c.id, data.offerings, data.subjects, hasGroups ? '' : undefined);
+    const done = completedCredits(c.id, data.completed);
+    const selected = selectedIds.has(c.id);
+    return (
+      <div
+        className="card class-card"
+        key={c.id}
+        onClick={selectMode ? () => toggleSel(c.id) : undefined}
+        style={selectMode ? { cursor: 'pointer', borderColor: selected ? 'var(--primary)' : undefined, background: selected ? 'var(--primary-weak)' : undefined } : undefined}
+      >
+        <div className="row-gap" style={{ justifyContent: 'space-between' }}>
+          <div className="row-gap" style={{ gap: '0.35rem' }}>
+            {selectMode && <input type="checkbox" checked={selected} onChange={() => toggleSel(c.id)} onClick={(e) => e.stopPropagation()} />}
+            <h3 style={{ margin: 0 }}>{c.grade}/{c.section}</h3>
+          </div>
+          <div className="row-gap class-card-badges">
+            {c.cohort && <span className="badge add">รุ่น {c.cohort}</span>}
+            <span className="badge base">{classLevel(c)}</span>
+          </div>
+        </div>
+        <p className="muted class-card-meta">{c.plan || 'ทั่วไป'} · {c.students} คน</p>
+        <div className="class-credits">
+          <span>พื้นฐาน <strong>{sum.basic}</strong></span>
+          <span>เพิ่มเติม <strong style={{ color: 'var(--warning)' }}>{sum.additional}</strong></span>
+          <span>{hasGroups ? 'ร่วม' : 'รวม'} <strong>{sum.total}</strong> นก.</span>
+        </div>
+        {hasGroups && (
+          <p className="muted class-card-note">
+            + {groups.length} กลุ่มเลือก (ดูรายกลุ่มที่ “หน่วยกิตรวมสะสม”)
+          </p>
+        )}
+        {done.total > 0 && (
+          <p className="muted class-card-note">สะสมเดิม <strong>{done.total}</strong> นก.</p>
+        )}
+        {!selectMode && (
+          <div className="row-gap class-card-actions">
+            <button className="btn small ghost" onClick={() => setCompletedFor(c)}>📚 หน่วยกิตเดิม</button>
+            <button className="btn small ghost" onClick={() => openDraft({ ...c })}>แก้ไข</button>
+            <button
+              className="btn small ghost"
+              onClick={() =>
+                setConfirmState({
+                  title: 'ลบห้องเรียน',
+                  message: `ลบห้อง ${c.grade}/${c.section}${c.cohort ? ` รุ่น ${c.cohort}` : ''} ?\n(การจัดสอนของห้องนี้จะถูกลบไปด้วย)`,
+                  confirmLabel: 'ลบ',
+                  danger: true,
+                  onConfirm: () => api.removeClass(c.id),
+                })
+              }
+            >
+              ลบ
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -162,72 +226,19 @@ export function Classes({ api }: Props) {
       {sorted.length === 0 ? (
         <div className="card empty">ยังไม่มีห้องเรียน กด “เพิ่มห้องเรียน” เพื่อเริ่ม</div>
       ) : (
-        <div className="grid class-cards">
-          {sorted.map((c) => {
-            const groups = classElectiveGroups(c.id, data.offerings);
-            const hasGroups = groups.length > 0;
-            // ถ้ามีกลุ่มเลือก ให้แสดงหน่วยกิต "วิชาร่วม" (นับครั้งเดียว) กันตัวเลขเกินจริง
-            const sum = classCredits(c.id, data.offerings, data.subjects, hasGroups ? '' : undefined);
-            const done = completedCredits(c.id, data.completed);
-            const selected = selectedIds.has(c.id);
-            return (
-              <div
-                className="card class-card"
-                key={c.id}
-                onClick={selectMode ? () => toggleSel(c.id) : undefined}
-                style={selectMode ? { cursor: 'pointer', borderColor: selected ? 'var(--primary)' : undefined, background: selected ? 'var(--primary-weak)' : undefined } : undefined}
-              >
-                <div className="row-gap" style={{ justifyContent: 'space-between' }}>
-                  <div className="row-gap" style={{ gap: '0.4rem' }}>
-                    {selectMode && <input type="checkbox" checked={selected} onChange={() => toggleSel(c.id)} onClick={(e) => e.stopPropagation()} />}
-                    <h3 style={{ margin: 0 }}>{c.grade}/{c.section}</h3>
-                  </div>
-                  <div className="row-gap">
-                    {c.cohort && <span className="badge add">รุ่น {c.cohort}</span>}
-                    <span className="badge base">{classLevel(c)}</span>
-                  </div>
-                </div>
-                <p className="muted" style={{ margin: '0.1rem 0 0.35rem', fontSize: '0.85rem' }}>
-                  {c.plan || 'ทั่วไป'} · {c.students} คน
-                </p>
-                <div className="class-credits">
-                  <span>พื้นฐาน <strong>{sum.basic}</strong></span>
-                  <span>เพิ่มเติม <strong style={{ color: 'var(--warning)' }}>{sum.additional}</strong></span>
-                  <span>{hasGroups ? 'ร่วม' : 'รวม'} <strong>{sum.total}</strong> นก.</span>
-                </div>
-                {hasGroups && (
-                  <p className="muted" style={{ margin: '0.2rem 0 0', fontSize: '0.78rem' }}>
-                    + {groups.length} กลุ่มเลือก (ดูหน่วยกิตรายกลุ่มที่ “หน่วยกิตรวมสะสม”)
-                  </p>
-                )}
-                {done.total > 0 && (
-                  <p className="muted" style={{ margin: '0.2rem 0 0', fontSize: '0.78rem' }}>
-                    เรียนจบแล้ว (สะสมเดิม): <strong>{done.total}</strong> นก.
-                  </p>
-                )}
-                {!selectMode && (
-                  <div className="row-gap" style={{ marginTop: '0.35rem' }}>
-                    <button className="btn small ghost" onClick={() => setCompletedFor(c)}>📚 หน่วยกิตเดิม</button>
-                    <button className="btn small ghost" onClick={() => openDraft({ ...c })}>แก้ไข</button>
-                    <button
-                      className="btn small ghost"
-                      onClick={() =>
-                        setConfirmState({
-                          title: 'ลบห้องเรียน',
-                          message: `ลบห้อง ${c.grade}/${c.section}${c.cohort ? ` รุ่น ${c.cohort}` : ''} ?\n(การจัดสอนของห้องนี้จะถูกลบไปด้วย)`,
-                          confirmLabel: 'ลบ',
-                          danger: true,
-                          onConfirm: () => api.removeClass(c.id),
-                        })
-                      }
-                    >
-                      ลบ
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="class-level-columns">
+          <section className="class-level-column">
+            <h3 className="class-level-title"><span>ม.ปลาย</span><span>{upperClasses.length} ห้อง</span></h3>
+            <div className="class-level-list">
+              {upperClasses.length > 0 ? upperClasses.map(renderClassCard) : <div className="empty class-level-empty">ยังไม่มีห้อง ม.ปลาย</div>}
+            </div>
+          </section>
+          <section className="class-level-column">
+            <h3 className="class-level-title"><span>ม.ต้น</span><span>{lowerClasses.length} ห้อง</span></h3>
+            <div className="class-level-list">
+              {lowerClasses.length > 0 ? lowerClasses.map(renderClassCard) : <div className="empty class-level-empty">ยังไม่มีห้อง ม.ต้น</div>}
+            </div>
+          </section>
         </div>
       )}
 
