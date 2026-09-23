@@ -12,12 +12,13 @@ import { findOfferingConflict } from '../offeringSemester';
 
 interface Props {
   api: AppDataApi;
+  semester: Semester;
+  setSemester: (s: Semester) => void;
 }
 
-export function AssignBySubject({ api }: Props) {
+export function AssignBySubject({ api, semester, setSemester }: Props) {
   const { data } = api;
   const [level, setLevel] = useState<Level>(data.subjects[0]?.level ?? 'ม.ต้น');
-  const [semester, setSemester] = useState<Semester>(1);
   const [subjectSearch, setSubjectSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ทั้งหมด' | SubjectType>('ทั้งหมด');
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set());
@@ -187,13 +188,7 @@ export function AssignBySubject({ api }: Props) {
             <button className={level === 'ม.ปลาย' ? 'active' : ''} onClick={() => setLevel('ม.ปลาย')}>ม.ปลาย</button>
           </div>
         </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>ภาคเรียน</label>
-          <div className="pill-group">
-            <button className={semester === 1 ? 'active' : ''} onClick={() => setSemester(1)}>ภาคเรียนที่ 1</button>
-            <button className={semester === 2 ? 'active' : ''} onClick={() => setSemester(2)}>ภาคเรียนที่ 2</button>
-          </div>
-        </div>
+        <span className="muted" style={{ alignSelf: 'flex-end', fontSize: '0.85rem' }}>· ภาคเรียนที่ {semester}</span>
         <span className="spacer" />
         <button className="btn ghost" style={{ alignSelf: 'flex-end' }} onClick={resetForm}>↺ ล้างค่าที่ตั้ง / เริ่มใหม่</button>
       </div>

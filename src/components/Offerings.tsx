@@ -35,6 +35,7 @@ type Mode = 'class' | 'subject';
 export function Offerings({ api }: Props) {
   const { data } = api;
   const [mode, setMode] = useState<Mode>('class');
+  const [semester, setSemester] = useState<Semester>(1); // ภาคเรียนที่ทำงาน (ใช้ร่วมทั้งหน้า)
   const [moveTarget, setMoveTarget] = useState<Semester | null>(null);
   const [undoMove, setUndoMove] = useState<{ ids: string[]; semester: Semester } | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -82,6 +83,19 @@ export function Offerings({ api }: Props) {
         <p>เลือกวิธีจัด: ตั้งต้นจากห้อง (เพิ่มหลายวิชาให้ห้องเดียว) หรือ ตั้งต้นจากรายวิชา (เพิ่มวิชาเดียวให้หลายห้อง)</p>
       </div>
 
+      <div className="card term-picker" style={{ marginBottom: '1rem' }}>
+        <div className="row-gap" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+          <strong>📅 ภาคเรียนที่ทำงาน</strong>
+          <div className="pill-group">
+            <button className={semester === 1 ? 'active' : ''} onClick={() => setSemester(1)}>ภาคเรียนที่ 1</button>
+            <button className={semester === 2 ? 'active' : ''} onClick={() => setSemester(2)}>ภาคเรียนที่ 2</button>
+          </div>
+          <span className="muted" style={{ fontSize: '0.85rem' }}>
+            ทุกการเพิ่ม/แสดง/จัดในหน้านี้เป็นของ<strong>ภาคเรียนที่ {semester}</strong>
+          </span>
+        </div>
+      </div>
+
       {recentBatch.length > 0 && (
         <div className="card" style={{ marginBottom: '1rem', borderColor: 'var(--primary)' }}>
           <div className="row-gap" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -111,9 +125,9 @@ export function Offerings({ api }: Props) {
       {data.classes.length === 0 ? (
         <div className="card empty">ยังไม่มีห้องเรียน — ไปที่แท็บ “ห้องเรียน” เพื่อเพิ่มก่อน</div>
       ) : mode === 'class' ? (
-        <AssignByClass api={api} />
+        <AssignByClass api={api} semester={semester} setSemester={setSemester} />
       ) : (
-        <AssignBySubject api={api} />
+        <AssignBySubject api={api} semester={semester} setSemester={setSemester} />
       )}
 
       {moveTarget != null && movePlan && (() => {
@@ -161,10 +175,9 @@ export function Offerings({ api }: Props) {
   );
 }
 
-function AssignByClass({ api }: Props) {
+function AssignByClass({ api, semester, setSemester }: Props & { semester: Semester; setSemester: (s: Semester) => void }) {
   const { data } = api;
   const [classId, setClassId] = useState<string>(data.classes[0]?.id ?? '');
-  const [semester, setSemester] = useState<Semester>(1);
   const [search, setSearch] = useState('');
   const [addSubjectSearch, setAddSubjectSearch] = useState('');
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -299,15 +312,8 @@ function AssignByClass({ api }: Props) {
             ))}
           </select>
         </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>ภาคเรียน</label>
-          <div className="pill-group">
-            <button className={semester === 1 ? 'active' : ''} onClick={() => setSemester(1)}>ภาคเรียนที่ 1</button>
-            <button className={semester === 2 ? 'active' : ''} onClick={() => setSemester(2)}>ภาคเรียนที่ 2</button>
-          </div>
-        </div>
         <div className="field" style={{ margin: 0, flex: 1, minWidth: 160 }}>
-          <label>ค้นหา</label>
+          <label>ค้นหา (ภาคเรียนที่ {semester})</label>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}

@@ -761,6 +761,13 @@ th.sortable:hover { color: var(--text); }
   margin-bottom: 1rem;
 }
 
+/* แถบเลือกภาคเรียนที่ทำงาน (หน้าจัดรายวิชา) */
+.term-picker {
+  border-color: var(--primary);
+  border-left-width: 4px;
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+}
+
 /* สรุปแยกรายกลุ่มในหน้าจัดรายวิชา (แบบกะทัดรัด + สวยงาม) */
 .offering-summary-wrap {
   margin-bottom: 1rem;
