@@ -5,6 +5,7 @@ import type { Level, Settings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 import { downloadBackup, importFromJson } from '../storage';
 import { ConfirmDialog, type ConfirmState } from './common/ConfirmDialog';
+import { BulkMoveSemesterCard } from './BulkMoveSemesterCard';
 
 interface Props {
   api: AppDataApi;
@@ -210,6 +211,8 @@ export function SettingsPanel({ api }: Props) {
           🧪 โหลดข้อมูลตัวอย่าง
         </button>
       </div>
+
+      <BulkMoveSemesterCard api={api} />
 
       <div className="card" style={{ borderColor: 'var(--danger)' }}>
         <h3 className="section-title" style={{ marginTop: 0, color: 'var(--danger)' }}>ล้างข้อมูล & เริ่มใหม่</h3>
