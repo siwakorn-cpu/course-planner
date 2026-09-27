@@ -43,6 +43,23 @@ export function Workload({ api }: Props) {
     return teacherWorkloadInArea(openGroup.area, data.offerings, data.subjects, data.teachers, filter, data.coupledGroups, match);
   }, [openGroup, data.offerings, data.subjects, data.teachers, data.coupledGroups, filter]);
 
+  // รายวิชาที่ครูแต่ละคนสอน (ในกลุ่มที่กางดู) — teacherId หรือ '__none__'
+  const teacherSubjects = useMemo(() => {
+    const m = new Map<string, string[]>();
+    if (!openGroup) return m;
+    const inGroup = (s: Parameters<typeof subGroupOf>[0]) =>
+      !areaSupportsSubGroup(openGroup.area) || subGroupOf(s) === openGroup.subGroup;
+    for (const u of teachingUnits(data.offerings, data.subjects, data.coupledGroups, filter)) {
+      if (u.subject.area !== openGroup.area || !inGroup(u.subject)) continue;
+      const key = u.teacherId ?? '__none__';
+      const label = `${u.subject.code} ${u.subject.name}`;
+      const arr = m.get(key) ?? [];
+      if (!arr.includes(label)) arr.push(label);
+      m.set(key, arr);
+    }
+    return m;
+  }, [openGroup, data.offerings, data.subjects, data.coupledGroups, filter]);
+
   // จำนวนครูต่อกลุ่ม: กลุ่มปกติ = ครูที่สังกัดกลุ่มสาระ; กลุ่มย่อย = ครูที่สังกัดกลุ่มนี้และระบุกลุ่มย่อยตรงกัน
   const teacherCountByKey = useMemo(() => {
     const counts = new Map<string, number>();
@@ -205,6 +222,7 @@ export function Workload({ api }: Props) {
                 <thead>
                   <tr>
                     <th>ครูผู้สอน</th>
+                    <th>รายวิชาที่สอน</th>
                     <th className="num">จำนวนวิชา</th>
                     <th className="num">คาบ/สัปดาห์</th>
                     <th className="num">เทียบภาระงาน</th>
@@ -213,9 +231,13 @@ export function Workload({ api }: Props) {
                 <tbody>
                   {teacherRows.map((tr) => {
                     const ratio = data.settings.teacherLoad > 0 ? tr.periods / data.settings.teacherLoad : 0;
+                    const subjectList = teacherSubjects.get(tr.teacherId ?? '__none__') ?? [];
                     return (
                       <tr key={tr.teacherId ?? '__none__'}>
                         <td>{tr.teacherId === null ? <span className="muted">{tr.name}</span> : tr.name}</td>
+                        <td style={{ whiteSpace: 'normal', minWidth: 200 }}>
+                          {subjectList.length > 0 ? subjectList.join(', ') : <span className="muted">—</span>}
+                        </td>
                         <td className="num">{tr.offeringsCount}</td>
                         <td className="num"><strong>{tr.periods}</strong></td>
                         <td className="num">
