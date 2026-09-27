@@ -1,6 +1,6 @@
 // exportOfferings — ส่งออกรายงาน "รายวิชาที่เปิดสอน" เป็นไฟล์ Excel (.xlsx)
 // จัดกลุ่มตามกลุ่มสาระ (1 ชีตต่อ 1 กลุ่มสาระที่มีข้อมูล) ให้ตรงกับหน้า Print
-import { subjectPrintRows } from './calculations';
+import { SUBGROUP_AREAS, subjectPrintRows, type SubjectPrintRow } from './calculations';
 import { AREAS, type AppData, type Area, type Semester } from './types';
 
 const AREA_TITLES: Record<Area, string> = {
@@ -45,17 +45,29 @@ export async function exportOfferingsToExcel(
   const usedNames = new Set<string>();
   const yearText = academicYear || '…………';
 
-  const areasWithData = AREAS.filter((area) => rows.some((r) => r.area === area));
-  const targetAreas = areasWithData.length > 0 ? areasWithData : AREAS.slice(0, 1);
-
-  for (const area of targetAreas) {
+  // แตกเป็นส่วน ๆ (เฉพาะที่มีข้อมูล): กลุ่มสาระที่แยกกลุ่มย่อย → หลายชีต
+  const sections: { area: Area; subGroup?: string; rows: SubjectPrintRow[] }[] = [];
+  for (const area of AREAS) {
     const areaRows = rows.filter((r) => r.area === area);
+    if (areaRows.length === 0) continue;
+    if (SUBGROUP_AREAS[area]) {
+      const labels = [...new Set(areaRows.map((r) => r.subGroup).filter((v): v is string => !!v))]
+        .sort((a, b) => a.localeCompare(b, 'th'));
+      for (const sg of labels) sections.push({ area, subGroup: sg, rows: areaRows.filter((r) => r.subGroup === sg) });
+    } else {
+      sections.push({ area, rows: areaRows });
+    }
+  }
+  if (sections.length === 0) sections.push({ area: AREAS[0], rows: [] });
+
+  for (const section of sections) {
+    const areaRows = section.rows;
     const totalPeriods = areaRows.reduce((sum, r) => sum + r.totalPeriods, 0);
 
     const aoa: (string | number)[][] = [
       ['รายวิชาที่เปิดสอน'],
       ['สอดคล้องตามหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน พุทธศักราช 2551 (ฉบับปรับปรุง 2560)'],
-      [AREA_TITLES[area]],
+      [`${AREA_TITLES[section.area]}${section.subGroup ? ` (${section.subGroup})` : ''}`],
       [`ภาคเรียนที่ ${semester} ปีการศึกษา ${yearText}`],
       [],
       HEADERS,
@@ -89,7 +101,7 @@ export async function exportOfferingsToExcel(
     ];
     // ผสานเซลล์หัวรายงาน 4 บรรทัดให้กว้างเต็มตาราง
     ws['!merges'] = [0, 1, 2, 3].map((row) => ({ s: { r: row, c: 0 }, e: { r: row, c: HEADERS.length - 1 } }));
-    XLSX.utils.book_append_sheet(wb, ws, safeSheetName(area, usedNames));
+    XLSX.utils.book_append_sheet(wb, ws, safeSheetName(section.subGroup ?? section.area, usedNames));
   }
 
   XLSX.writeFile(wb, `รายวิชาที่เปิดสอน-ภาคเรียน${semester}-${yearText}.xlsx`);

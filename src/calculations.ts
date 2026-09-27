@@ -331,6 +331,7 @@ export interface TeachingUnit {
 /** แถวรายวิชาสำหรับรายงานพิมพ์ รวมห้องที่มีรายวิชาและจำนวนคาบต่อสัปดาห์ตรงกัน */
 export interface SubjectPrintRow {
   area: Area;
+  subGroup?: string; // กลุ่มย่อยในกลุ่มสาระ (เช่น วิทยาศาสตร์/เทคโนโลยี, ภาษา) ถ้ามี
   subjectId: string;
   code: string;
   name: string;
@@ -440,6 +441,7 @@ export function subjectPrintRows(
       const notes = [...new Set(classEntries.map((entry) => entry.note).filter(Boolean))];
       return {
         area: subject.area,
+        subGroup: subGroupOf(subject),
         subjectId: subject.id,
         code: subject.code,
         name: subject.name,

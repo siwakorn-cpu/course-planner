@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { subjectPrintRows } from '../calculations';
+import { SUBGROUP_AREAS, subjectPrintRows, type SubjectPrintRow } from '../calculations';
 import { AREAS, type AppData, type Area, type Semester } from '../types';
 
 interface Props {
@@ -31,17 +31,39 @@ export function PrintOfferingsReport({ data, semester, academicYear, screenVisib
     [data.offerings, data.subjects, data.classes, data.coupledGroups, semester],
   );
 
+  // แตกส่วนรายงาน: กลุ่มสาระที่แยกกลุ่มย่อย (เช่น วิทย์ฯ) จะกลายเป็นหลายส่วน
+  const sections = useMemo(() => {
+    const out: { key: string; area: Area; subGroup?: string; rows: SubjectPrintRow[] }[] = [];
+    for (const area of AREAS) {
+      const areaRows = rows.filter((r) => r.area === area);
+      const cfg = SUBGROUP_AREAS[area];
+      if (!cfg) {
+        out.push({ key: area, area, rows: areaRows });
+        continue;
+      }
+      const labels = new Set<string>(cfg.fixed ?? []);
+      for (const r of areaRows) if (r.subGroup) labels.add(r.subGroup);
+      const sorted = [...labels].sort((a, b) => a.localeCompare(b, 'th'));
+      if (sorted.length === 0) {
+        out.push({ key: area, area, rows: [] });
+        continue;
+      }
+      for (const sg of sorted) out.push({ key: `${area}::${sg}`, area, subGroup: sg, rows: areaRows.filter((r) => r.subGroup === sg) });
+    }
+    return out;
+  }, [rows]);
+
   return (
     <div className={`print-report${screenVisible ? ' print-report-visible' : ''}`} aria-hidden={!screenVisible}>
-      {AREAS.map((area) => {
-        const areaRows = rows.filter((row) => row.area === area);
+      {sections.map((section) => {
+        const areaRows = section.rows;
         const totalPeriods = areaRows.reduce((sum, row) => sum + row.totalPeriods, 0);
         return (
-          <section className="print-area-section" key={area}>
+          <section className="print-area-section" key={section.key}>
             <header className="print-report-head">
               <h1>รายวิชาที่เปิดสอน</h1>
               <p>สอดคล้องตามหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน พุทธศักราช 2551 (ฉบับปรับปรุง 2560)</p>
-              <p>{AREA_TITLES[area]}</p>
+              <p>{AREA_TITLES[section.area]}{section.subGroup ? ` (${section.subGroup})` : ''}</p>
               <p>ภาคเรียนที่ {semester} ปีการศึกษา {academicYear || '…………'}</p>
             </header>
 
