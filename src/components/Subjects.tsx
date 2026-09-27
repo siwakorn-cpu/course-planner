@@ -6,6 +6,7 @@ import {
   compareAreas,
   type Area,
   type Level,
+  type SciTechTrack,
   type Subject,
   type SubjectType,
 } from '../types';
@@ -264,10 +265,30 @@ export function Subjects({ api }: Props) {
           <div className="form-row">
             <div className="field">
               <label>กลุ่มสาระ</label>
-              <select value={draft.area} onChange={(e) => setDraft({ ...draft, area: e.target.value as Area })}>
+              <select
+                value={draft.area}
+                onChange={(e) => {
+                  const area = e.target.value as Area;
+                  // ออกจากกลุ่มวิทยาศาสตร์และเทคโนโลยี → ล้างสายทิ้ง
+                  setDraft({ ...draft, area, track: area === 'วิทยาศาสตร์และเทคโนโลยี' ? draft.track : undefined });
+                }}
+              >
                 {AREAS.map((a) => (<option key={a} value={a}>{a}</option>))}
               </select>
             </div>
+            {draft.area === 'วิทยาศาสตร์และเทคโนโลยี' && (
+              <div className="field">
+                <label>สาย (ในกลุ่มวิทย์ฯ)</label>
+                <select
+                  value={draft.track ?? ''}
+                  onChange={(e) => setDraft({ ...draft, track: e.target.value === '' ? undefined : (e.target.value as SciTechTrack) })}
+                >
+                  <option value="">— เดาจากชื่อ/รหัส —</option>
+                  <option value="วิทยาศาสตร์">วิทยาศาสตร์</option>
+                  <option value="เทคโนโลยี">เทคโนโลยี</option>
+                </select>
+              </div>
+            )}
             <div className="field">
               <label>ประเภท</label>
               <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as SubjectType })}>

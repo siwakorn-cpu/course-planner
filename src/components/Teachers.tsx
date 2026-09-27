@@ -1,7 +1,7 @@
 // Teachers — จัดการรายชื่อครู: เพิ่ม/แก้/ลบ/นำเข้า Excel + ดูภาระคาบสอนรวมต่อคน
 import { useMemo, useRef, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
-import { AREAS, compareAreas, type Area, type Teacher } from '../types';
+import { AREAS, compareAreas, type Area, type SciTechTrack, type Teacher } from '../types';
 import { type SemesterFilter, teacherWorkloadTotals } from '../calculations';
 import { downloadTeacherTemplate, parseTeacherFile, type TeacherParseResult } from '../importExcel';
 import { Modal } from './common/Modal';
@@ -125,7 +125,7 @@ export function Teachers({ api }: Props) {
                 return (
                   <tr key={t.id}>
                     <td>{t.name}</td>
-                    <td>{t.area ?? <span className="muted">—</span>}</td>
+                    <td>{t.area ? <>{t.area}{t.track && <span className="muted"> · {t.track}</span>}</> : <span className="muted">—</span>}</td>
                     <td className="num">{load?.offeringsCount ?? 0}</td>
                     <td className="num"><strong>{periods}</strong></td>
                     <td className="num">
@@ -183,12 +183,29 @@ export function Teachers({ api }: Props) {
             <label>กลุ่มสาระ (ไม่ระบุก็ได้)</label>
             <select
               value={draft.area ?? ''}
-              onChange={(e) => setDraft({ ...draft, area: e.target.value === '' ? undefined : (e.target.value as Area) })}
+              onChange={(e) => {
+                const area = e.target.value === '' ? undefined : (e.target.value as Area);
+                // ออกจากกลุ่มวิทยาศาสตร์และเทคโนโลยี → ล้างสายทิ้ง
+                setDraft({ ...draft, area, track: area === 'วิทยาศาสตร์และเทคโนโลยี' ? draft.track : undefined });
+              }}
             >
               <option value="">— ไม่ระบุ —</option>
               {AREAS.map((a) => (<option key={a} value={a}>{a}</option>))}
             </select>
           </div>
+          {draft.area === 'วิทยาศาสตร์และเทคโนโลยี' && (
+            <div className="field">
+              <label>สาย (ในกลุ่มวิทย์ฯ) — ใช้คิดอัตรากำลังแยกสาย</label>
+              <select
+                value={draft.track ?? ''}
+                onChange={(e) => setDraft({ ...draft, track: e.target.value === '' ? undefined : (e.target.value as SciTechTrack) })}
+              >
+                <option value="">— ไม่ระบุสาย —</option>
+                <option value="วิทยาศาสตร์">วิทยาศาสตร์</option>
+                <option value="เทคโนโลยี">เทคโนโลยี</option>
+              </select>
+            </div>
+          )}
           {err && <p style={{ color: 'var(--danger)', margin: '0.25rem 0 0' }}>{err}</p>}
           <div className="modal-actions">
             <button className="btn" onClick={() => setDraft(null)}>ยกเลิก</button>

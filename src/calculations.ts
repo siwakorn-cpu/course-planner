@@ -12,6 +12,7 @@ import {
   type CreditRecord,
   type Level,
   type Offering,
+  type SciTechTrack,
   type Semester,
   type Settings,
   type Subject,
@@ -491,6 +492,102 @@ export function workloadByArea(
   });
 }
 
+// ---------- แยกสาย "วิทยาศาสตร์" / "เทคโนโลยี" (ในกลุ่มวิทยาศาสตร์และเทคโนโลยี) ----------
+// เหตุผล: สอนข้ามสายกันไม่ได้ การคำนวณอัตรากำลังจึงต้องแยกคาบ/ครูของสองสายออกจากกัน
+// (กลุ่มสาระในรายงานอื่น ๆ ยังเป็น "วิทยาศาสตร์และเทคโนโลยี" เหมือนเดิม)
+
+const SCI_TECH_AREA: Area = 'วิทยาศาสตร์และเทคโนโลยี';
+
+/** คำที่บ่งชี้ว่าเป็นวิชาสาย "เทคโนโลยี" (เดาจากรหัส/ชื่อวิชา) */
+const TECH_HINTS = [
+  'วิทยาการคำนวณ', 'วิทยาการคํานวณ', 'ออกแบบ', 'เทคโนโลยี', 'คอมพิวเตอร์',
+  'โปรแกรม', 'โค้ด', 'ดิจิทัล', 'ดิจิตอล', 'วิทยาการข้อมูล', 'หุ่นยนต์',
+  'coding', 'computer', 'ictง',
+];
+
+/**
+ * เดา "สาย" ของวิชาในกลุ่มวิทยาศาสตร์และเทคโนโลยี จากรหัส/ชื่อวิชา
+ * - คืน null ถ้าไม่ใช่กลุ่มวิทยาศาสตร์และเทคโนโลยี
+ * - เข้าเงื่อนไขเทคโนโลยี → 'เทคโนโลยี' ; ไม่เข้า → 'วิทยาศาสตร์' (ค่าเริ่มต้น)
+ */
+export function sciTechTrack(subject: Subject): SciTechTrack | null {
+  if (subject.area !== SCI_TECH_AREA) return null;
+  // ระบุเองมาก่อน (จากฟอร์มแก้ไข/เพิ่มรายวิชา) ; ไม่ระบุจึงเดาจากชื่อ/รหัส
+  if (subject.track === 'วิทยาศาสตร์' || subject.track === 'เทคโนโลยี') return subject.track;
+  const hay = `${subject.code} ${subject.name}`.toLowerCase();
+  return TECH_HINTS.some((k) => hay.includes(k.toLowerCase())) ? 'เทคโนโลยี' : 'วิทยาศาสตร์';
+}
+
+/** กลุ่มสำหรับคิดภาระงาน = กลุ่มสาระ แต่แยกวิทยาศาสตร์และเทคโนโลยีเป็น 2 สาย */
+export interface WorkloadGroup {
+  key: string; // id ใช้ในตาราง/ดรอปดาวน์
+  label: string; // ชื่อที่แสดง
+  area: Area; // กลุ่มสาระจริง
+  track?: SciTechTrack; // สายย่อย (เฉพาะวิทยาศาสตร์และเทคโนโลยี)
+}
+
+/** คีย์กลุ่มภาระงานของวิชาหนึ่ง (แยกสายให้กลุ่มวิทยาศาสตร์และเทคโนโลยี) */
+export function subjectWorkloadKey(subject: Subject): string {
+  const track = sciTechTrack(subject);
+  return track ? `${SCI_TECH_AREA}::${track}` : subject.area;
+}
+
+/** รายการกลุ่มภาระงานทั้งหมด (เรียงตาม AREAS โดยแทรกวิทย์/เทคโนฯ แทนที่กลุ่มรวม) */
+export function workloadGroups(): WorkloadGroup[] {
+  const groups: WorkloadGroup[] = [];
+  for (const area of AREAS) {
+    if (area === SCI_TECH_AREA) {
+      groups.push({ key: `${area}::วิทยาศาสตร์`, label: 'วิทยาศาสตร์', area, track: 'วิทยาศาสตร์' });
+      groups.push({ key: `${area}::เทคโนโลยี`, label: 'เทคโนโลยี', area, track: 'เทคโนโลยี' });
+    } else {
+      groups.push({ key: area, label: area, area });
+    }
+  }
+  return groups;
+}
+
+export interface GroupWorkload extends WorkloadGroup {
+  periods: number;
+  offeringsCount: number;
+  teachersNeeded: number;
+  teachersRounded: number;
+}
+
+/**
+ * สรุปคาบสอนรวม + ครูที่ต้องใช้ ต่อ "กลุ่มภาระงาน" (แยกสายวิทย์/เทคโนฯ)
+ * เหมือน workloadByArea แต่วิทยาศาสตร์และเทคโนโลยีถูกแยกเป็น 2 แถวเพื่อคิดอัตรากำลังแยกกัน
+ */
+export function workloadByGroup(
+  offerings: Offering[],
+  subjects: Subject[],
+  settings: Settings,
+  filter: SemesterFilter = 'ปี',
+  coupledGroups: CoupledClassGroup[] = [],
+): GroupWorkload[] {
+  const groups = workloadGroups();
+  const acc = new Map<string, { periods: number; count: number }>();
+  for (const g of groups) acc.set(g.key, { periods: 0, count: 0 });
+
+  for (const unit of teachingUnits(offerings, subjects, coupledGroups, filter)) {
+    const bucket = acc.get(subjectWorkloadKey(unit.subject));
+    if (!bucket) continue;
+    bucket.periods += unit.periods;
+    bucket.count += 1;
+  }
+
+  const load = settings.teacherLoad > 0 ? settings.teacherLoad : 1;
+  return groups.map((g) => {
+    const b = acc.get(g.key)!;
+    return {
+      ...g,
+      periods: b.periods,
+      offeringsCount: b.count,
+      teachersNeeded: b.periods / load,
+      teachersRounded: Math.ceil(b.periods / load),
+    };
+  });
+}
+
 /** คาบสอนรวมทั้งโรงเรียน ในช่วงภาคเรียนที่เลือก */
 export function totalPeriods(
   offerings: Offering[],
@@ -560,12 +657,14 @@ export function teacherWorkloadInArea(
   teachers: Teacher[],
   filter: SemesterFilter = 'ปี',
   coupledGroups: CoupledClassGroup[] = [],
+  track?: SciTechTrack, // ถ้าระบุ = กรองเฉพาะสายนั้นในกลุ่มวิทยาศาสตร์และเทคโนโลยี
 ): TeacherWorkload[] {
   const tMap = teacherMap(teachers);
   const acc = new Map<string, { periods: number; count: number }>();
 
   for (const unit of teachingUnits(offerings, subjects, coupledGroups, filter)) {
     if (unit.subject.area !== area) continue;
+    if (track && sciTechTrack(unit.subject) !== track) continue;
     const key = unit.teacherId ?? '__none__';
     const b = acc.get(key) ?? { periods: 0, count: 0 };
     b.periods += unit.periods;

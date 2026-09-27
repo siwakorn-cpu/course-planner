@@ -761,6 +761,11 @@ th.sortable:hover { color: var(--text); }
   margin-bottom: 1rem;
 }
 
+/* แถวสายย่อยวิทย์/เทคโนฯ ในตารางภาระงาน */
+.sci-tech-row td {
+  background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+}
+
 /* แถบเลือกภาคเรียนที่ทำงาน (หน้าจัดรายวิชา) */
 .term-picker {
   border-color: var(--primary);

@@ -1,15 +1,15 @@
 // Workload — ภาระงาน & อัตรากำลัง: คาบสอนต่อกลุ่มสาระ + ครูที่ต้องใช้ + Export CSV
 import { useMemo, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
-import { type Area } from '../types';
 import {
   type SemesterFilter,
   classLabel,
+  sciTechTrack,
   teacherMap,
   teacherName,
   teachingUnits,
   teacherWorkloadInArea,
-  workloadByArea,
+  workloadByGroup,
 } from '../calculations';
 import { BarChart } from './common/BarChart';
 import { downloadCsv } from '../exportCsv';
@@ -21,30 +21,39 @@ interface Props {
 export function Workload({ api }: Props) {
   const { data } = api;
   const [filter, setFilter] = useState<SemesterFilter>('ปี');
-  const [openArea, setOpenArea] = useState<Area | null>(null);
+  const [openKey, setOpenKey] = useState<string | null>(null);
 
   const tMap = useMemo(() => teacherMap(data.teachers), [data.teachers]);
   const classMap = useMemo(() => new Map(data.classes.map((c) => [c.id, c])), [data.classes]);
 
-  // ภาระงานรายครูในกลุ่มสาระที่กางดู
-  const teacherRows = useMemo(
-    () => (openArea ? teacherWorkloadInArea(openArea, data.offerings, data.subjects, data.teachers, filter, data.coupledGroups) : []),
-    [openArea, data.offerings, data.subjects, data.teachers, data.coupledGroups, filter],
-  );
-
   const workload = useMemo(
-    () => workloadByArea(data.offerings, data.subjects, data.settings, filter, data.coupledGroups),
+    () => workloadByGroup(data.offerings, data.subjects, data.settings, filter, data.coupledGroups),
     [data.offerings, data.subjects, data.settings, data.coupledGroups, filter],
   );
 
-  const teacherCountByArea = useMemo(() => {
-    const counts = new Map<Area, number>();
-    for (const teacher of data.teachers) {
-      if (!teacher.area) continue;
-      counts.set(teacher.area, (counts.get(teacher.area) ?? 0) + 1);
+  const openGroup = useMemo(() => workload.find((g) => g.key === openKey) ?? null, [workload, openKey]);
+
+  // ภาระงานรายครูในกลุ่มที่กางดู (กรองสายวิทย์/เทคโนฯ ถ้าเป็นกลุ่มย่อย)
+  const teacherRows = useMemo(
+    () => (openGroup
+      ? teacherWorkloadInArea(openGroup.area, data.offerings, data.subjects, data.teachers, filter, data.coupledGroups, openGroup.track)
+      : []),
+    [openGroup, data.offerings, data.subjects, data.teachers, data.coupledGroups, filter],
+  );
+
+  // จำนวนครูต่อกลุ่ม: กลุ่มปกติ = ครูที่สังกัดกลุ่มสาระ; สายวิทย์/เทคโนฯ = ครูที่สังกัดกลุ่มนี้และระบุสายตรงกัน
+  const teacherCountByKey = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const g of workload) {
+      counts.set(
+        g.key,
+        g.track
+          ? data.teachers.filter((t) => t.area === g.area && t.track === g.track).length
+          : data.teachers.filter((t) => t.area === g.area).length,
+      );
     }
     return counts;
-  }, [data.teachers]);
+  }, [workload, data.teachers]);
 
   const totals = workload.reduce(
     (acc, w) => {
@@ -55,11 +64,11 @@ export function Workload({ api }: Props) {
     { periods: 0, teachers: 0 },
   );
 
-  // รายการ offering ในกลุ่มสาระที่กางดู
+  // รายการ offering ในกลุ่มที่กางดู
   const detail = useMemo(() => {
-    if (!openArea) return [];
+    if (!openGroup) return [];
     return teachingUnits(data.offerings, data.subjects, data.coupledGroups, filter)
-      .filter((unit) => unit.subject.area === openArea)
+      .filter((unit) => unit.subject.area === openGroup.area && (!openGroup.track || sciTechTrack(unit.subject) === openGroup.track))
       .map((unit) => {
         const classNames = unit.classIds.map((id) => {
           const c = classMap.get(id);
@@ -77,7 +86,7 @@ export function Workload({ api }: Props) {
         };
       })
       .sort((a, b) => a.className.localeCompare(b.className, 'th'));
-  }, [openArea, data.offerings, data.subjects, data.coupledGroups, classMap, tMap, filter]);
+  }, [openGroup, data.offerings, data.subjects, data.coupledGroups, classMap, tMap, filter]);
 
   const exportCsv = () => {
     const headers = [
@@ -86,14 +95,14 @@ export function Workload({ api }: Props) {
       'ครูที่ต้องใช้ (ปัดขึ้น)', 'ครูที่ต้องใช้ (ทศนิยม)',
     ];
     const rows = workload.map((w) => {
-      const teacherCount = teacherCountByArea.get(w.area) ?? 0;
+      const teacherCount = teacherCountByKey.get(w.key) ?? 0;
       return [
-        w.area, w.offeringsCount, w.periods, teacherCount,
+        w.label, w.offeringsCount, w.periods, teacherCount,
         teacherCount > 0 ? (w.periods / teacherCount).toFixed(2) : '',
         w.teachersRounded, w.teachersNeeded.toFixed(2),
       ];
     });
-    const registeredTeachers = [...teacherCountByArea.values()].reduce((sum, count) => sum + count, 0);
+    const registeredTeachers = [...teacherCountByKey.values()].reduce((sum, count) => sum + count, 0);
     rows.push([
       'รวมทั้งหมด', workload.reduce((a, w) => a + w.offeringsCount, 0), totals.periods, registeredTeachers,
       registeredTeachers > 0 ? (totals.periods / registeredTeachers).toFixed(2) : '',
@@ -127,12 +136,15 @@ export function Workload({ api }: Props) {
 
       <div className="card" style={{ marginBottom: '1rem' }}>
         <h3 className="section-title" style={{ marginTop: 0 }}>คาบสอนต่อกลุ่มสาระ</h3>
-        <p className="muted" style={{ marginTop: 0, fontSize: '0.88rem' }}>คลิกที่กลุ่มสาระเพื่อกางดูภาระงานรายครู</p>
+        <p className="muted" style={{ marginTop: 0, fontSize: '0.88rem' }}>คลิกที่กลุ่มสาระเพื่อกางดูภาระงานรายครู · วิทยาศาสตร์และเทคโนโลยีแยกเป็น 2 สาย (สอนข้ามสายไม่ได้)</p>
         <BarChart
-          data={workload.map((w) => ({ label: w.area, value: w.periods }))}
+          data={workload.map((w) => ({ label: w.label, value: w.periods }))}
           unit=" คาบ"
-          onSelect={(label) => setOpenArea(openArea === (label as Area) ? null : (label as Area))}
-          activeLabel={openArea}
+          onSelect={(label) => {
+            const g = workload.find((w) => w.label === label);
+            if (g) setOpenKey(openKey === g.key ? null : g.key);
+          }}
+          activeLabel={openGroup?.label ?? null}
         />
       </div>
 
@@ -149,35 +161,38 @@ export function Workload({ api }: Props) {
             </tr>
           </thead>
           <tbody>
-            {workload.map((w) => (
-              <tr key={w.area}>
-                <td>{w.area}</td>
-                <td className="num">{w.offeringsCount}</td>
-                <td className="num">{w.periods}</td>
-                <td className="num">
-                  {(teacherCountByArea.get(w.area) ?? 0) > 0 ? (
-                    <><strong>{(w.periods / (teacherCountByArea.get(w.area) ?? 1)).toFixed(2)}</strong> <span className="muted">({teacherCountByArea.get(w.area)} คน)</span></>
-                  ) : (
-                    <span className="muted">— (ยังไม่ระบุกลุ่มสาระของครู)</span>
-                  )}
-                </td>
-                <td className="num">
-                  <strong>{w.teachersRounded}</strong> <span className="muted">({w.teachersNeeded.toFixed(2)})</span>
-                </td>
-                <td>
-                  <button className="btn small ghost" onClick={() => setOpenArea(openArea === w.area ? null : w.area)} disabled={w.offeringsCount === 0}>
-                    {openArea === w.area ? 'ซ่อน' : 'ดูรายละเอียด'}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {workload.map((w) => {
+              const teacherCount = teacherCountByKey.get(w.key) ?? 0;
+              return (
+                <tr key={w.key} className={w.track ? 'sci-tech-row' : undefined}>
+                  <td>{w.track ? <span style={{ paddingLeft: '0.8rem' }}>↳ {w.label}</span> : w.label}</td>
+                  <td className="num">{w.offeringsCount}</td>
+                  <td className="num">{w.periods}</td>
+                  <td className="num">
+                    {teacherCount > 0 ? (
+                      <><strong>{(w.periods / teacherCount).toFixed(2)}</strong> <span className="muted">({teacherCount} คน)</span></>
+                    ) : (
+                      <span className="muted">— {w.track ? '(ยังไม่ระบุครูในสายนี้)' : '(ยังไม่ระบุกลุ่มสาระของครู)'}</span>
+                    )}
+                  </td>
+                  <td className="num">
+                    <strong>{w.teachersRounded}</strong> <span className="muted">({w.teachersNeeded.toFixed(2)})</span>
+                  </td>
+                  <td>
+                    <button className="btn small ghost" onClick={() => setOpenKey(openKey === w.key ? null : w.key)} disabled={w.offeringsCount === 0}>
+                      {openKey === w.key ? 'ซ่อน' : 'ดูรายละเอียด'}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {openArea && (
+      {openGroup && (
         <div className="card" style={{ marginTop: '1rem' }}>
-          <h3 className="section-title" style={{ marginTop: 0 }}>รายละเอียด: {openArea}</h3>
+          <h3 className="section-title" style={{ marginTop: 0 }}>รายละเอียด: {openGroup.track ? `วิทยาศาสตร์และเทคโนโลยี · สาย${openGroup.label}` : openGroup.label}</h3>
 
           <h4 style={{ margin: '0.25rem 0 0.5rem' }}>ภาระงานรายครู</h4>
           {teacherRows.length === 0 ? (
