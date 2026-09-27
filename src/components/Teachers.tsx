@@ -1,8 +1,8 @@
 // Teachers — จัดการรายชื่อครู: เพิ่ม/แก้/ลบ/นำเข้า Excel + ดูภาระคาบสอนรวมต่อคน
 import { useMemo, useRef, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
-import { AREAS, compareAreas, type Area, type SciTechTrack, type Teacher } from '../types';
-import { type SemesterFilter, teacherWorkloadTotals } from '../calculations';
+import { AREAS, compareAreas, type Area, type Teacher } from '../types';
+import { SUBGROUP_AREAS, areaSupportsSubGroup, subGroupOf, type SemesterFilter, teacherWorkloadTotals } from '../calculations';
 import { downloadTeacherTemplate, parseTeacherFile, type TeacherParseResult } from '../importExcel';
 import { Modal } from './common/Modal';
 import { ConfirmDialog, type ConfirmState } from './common/ConfirmDialog';
@@ -125,7 +125,7 @@ export function Teachers({ api }: Props) {
                 return (
                   <tr key={t.id}>
                     <td>{t.name}</td>
-                    <td>{t.area ? <>{t.area}{t.track && <span className="muted"> · {t.track}</span>}</> : <span className="muted">—</span>}</td>
+                    <td>{t.area ? <>{t.area}{t.subGroup && <span className="muted"> · {t.subGroup}</span>}</> : <span className="muted">—</span>}</td>
                     <td className="num">{load?.offeringsCount ?? 0}</td>
                     <td className="num"><strong>{periods}</strong></td>
                     <td className="num">
@@ -185,27 +185,44 @@ export function Teachers({ api }: Props) {
               value={draft.area ?? ''}
               onChange={(e) => {
                 const area = e.target.value === '' ? undefined : (e.target.value as Area);
-                // ออกจากกลุ่มวิทยาศาสตร์และเทคโนโลยี → ล้างสายทิ้ง
-                setDraft({ ...draft, area, track: area === 'วิทยาศาสตร์และเทคโนโลยี' ? draft.track : undefined });
+                // เปลี่ยนกลุ่มสาระ → ล้างกลุ่มย่อยทิ้ง
+                setDraft({ ...draft, area, subGroup: undefined });
               }}
             >
               <option value="">— ไม่ระบุ —</option>
               {AREAS.map((a) => (<option key={a} value={a}>{a}</option>))}
             </select>
           </div>
-          {draft.area === 'วิทยาศาสตร์และเทคโนโลยี' && (
-            <div className="field">
-              <label>สาย (ในกลุ่มวิทย์ฯ) — ใช้คิดอัตรากำลังแยกสาย</label>
-              <select
-                value={draft.track ?? ''}
-                onChange={(e) => setDraft({ ...draft, track: e.target.value === '' ? undefined : (e.target.value as SciTechTrack) })}
-              >
-                <option value="">— ไม่ระบุสาย —</option>
-                <option value="วิทยาศาสตร์">วิทยาศาสตร์</option>
-                <option value="เทคโนโลยี">เทคโนโลยี</option>
-              </select>
-            </div>
-          )}
+          {draft.area && areaSupportsSubGroup(draft.area) && (() => {
+            const cfg = SUBGROUP_AREAS[draft.area]!;
+            const suggestions = [...new Set([
+              ...data.subjects.filter((s) => s.area === draft.area).map((s) => subGroupOf(s)),
+              ...data.teachers.filter((t) => t.area === draft.area).map((t) => t.subGroup),
+            ].filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, 'th'));
+            return (
+              <div className="field">
+                <label>{cfg.label} (ในกลุ่ม{draft.area}) — ใช้คิดอัตรากำลังแยกกลุ่มย่อย</label>
+                {cfg.fixed ? (
+                  <select value={draft.subGroup ?? ''} onChange={(e) => setDraft({ ...draft, subGroup: e.target.value || undefined })}>
+                    <option value="">— ไม่ระบุ{cfg.label} —</option>
+                    {cfg.fixed.map((o) => (<option key={o} value={o}>{o}</option>))}
+                  </select>
+                ) : (
+                  <>
+                    <input
+                      list="teacher-subgroup-suggest"
+                      value={draft.subGroup ?? ''}
+                      onChange={(e) => setDraft({ ...draft, subGroup: e.target.value.trim() || undefined })}
+                      placeholder="เช่น อังกฤษ, จีน, ญี่ปุ่น"
+                    />
+                    <datalist id="teacher-subgroup-suggest">
+                      {suggestions.map((s) => (<option key={s} value={s} />))}
+                    </datalist>
+                  </>
+                )}
+              </div>
+            );
+          })()}
           {err && <p style={{ color: 'var(--danger)', margin: '0.25rem 0 0' }}>{err}</p>}
           <div className="modal-actions">
             <button className="btn" onClick={() => setDraft(null)}>ยกเลิก</button>

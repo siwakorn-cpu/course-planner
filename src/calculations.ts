@@ -12,7 +12,6 @@ import {
   type CreditRecord,
   type Level,
   type Offering,
-  type SciTechTrack,
   type Semester,
   type Settings,
   type Subject,
@@ -492,11 +491,21 @@ export function workloadByArea(
   });
 }
 
-// ---------- แยกสาย "วิทยาศาสตร์" / "เทคโนโลยี" (ในกลุ่มวิทยาศาสตร์และเทคโนโลยี) ----------
-// เหตุผล: สอนข้ามสายกันไม่ได้ การคำนวณอัตรากำลังจึงต้องแยกคาบ/ครูของสองสายออกจากกัน
-// (กลุ่มสาระในรายงานอื่น ๆ ยังเป็น "วิทยาศาสตร์และเทคโนโลยี" เหมือนเดิม)
+// ---------- แยก "กลุ่มย่อย" ในกลุ่มสาระ สำหรับคิดอัตรากำลัง ----------
+// บางกลุ่มสาระสอนข้ามกลุ่มย่อยกันไม่ได้ จึงต้องแยกคาบ/ครูของแต่ละกลุ่มย่อยเพื่อคิดอัตรากำลัง
+//   - วิทยาศาสตร์และเทคโนโลยี → สาย "วิทยาศาสตร์" / "เทคโนโลยี" (ตัวเลือกตายตัว)
+//   - ภาษาต่างประเทศ → แบ่งตาม "ภาษา" ที่สอน (ค่าอิสระ เช่น อังกฤษ/จีน/ญี่ปุ่น)
+// (กลุ่มสาระในรายงานอื่น ๆ ยังเป็นชื่อกลุ่มสาระเดิมเหมือนหลักสูตร)
 
-const SCI_TECH_AREA: Area = 'วิทยาศาสตร์และเทคโนโลยี';
+/** ตั้งค่ากลุ่มสาระที่ต้องแยกกลุ่มย่อย: label = ชื่อช่อง, fixed = ตัวเลือกตายตัว (ถ้ามี) */
+export const SUBGROUP_AREAS: Partial<Record<Area, { label: string; fixed?: readonly string[] }>> = {
+  'วิทยาศาสตร์และเทคโนโลยี': { label: 'สาย', fixed: ['วิทยาศาสตร์', 'เทคโนโลยี'] },
+  'ภาษาต่างประเทศ': { label: 'ภาษา' },
+};
+
+export function areaSupportsSubGroup(area: Area): boolean {
+  return area in SUBGROUP_AREAS;
+}
 
 /** คำที่บ่งชี้ว่าเป็นวิชาสาย "เทคโนโลยี" (เดาจากรหัส/ชื่อวิชา) */
 const TECH_HINTS = [
@@ -505,43 +514,72 @@ const TECH_HINTS = [
   'coding', 'computer', 'ictง',
 ];
 
-/**
- * เดา "สาย" ของวิชาในกลุ่มวิทยาศาสตร์และเทคโนโลยี จากรหัส/ชื่อวิชา
- * - คืน null ถ้าไม่ใช่กลุ่มวิทยาศาสตร์และเทคโนโลยี
- * - เข้าเงื่อนไขเทคโนโลยี → 'เทคโนโลยี' ; ไม่เข้า → 'วิทยาศาสตร์' (ค่าเริ่มต้น)
- */
-export function sciTechTrack(subject: Subject): SciTechTrack | null {
-  if (subject.area !== SCI_TECH_AREA) return null;
-  // ระบุเองมาก่อน (จากฟอร์มแก้ไข/เพิ่มรายวิชา) ; ไม่ระบุจึงเดาจากชื่อ/รหัส
-  if (subject.track === 'วิทยาศาสตร์' || subject.track === 'เทคโนโลยี') return subject.track;
-  const hay = `${subject.code} ${subject.name}`.toLowerCase();
-  return TECH_HINTS.some((k) => hay.includes(k.toLowerCase())) ? 'เทคโนโลยี' : 'วิทยาศาสตร์';
+/** เดากลุ่มย่อยของวิชาจากชื่อ/รหัส (เฉพาะกลุ่มสาระที่แยกกลุ่มย่อย) */
+function autoSubGroup(subject: Subject): string | undefined {
+  const hay = `${subject.code} ${subject.name}`;
+  if (subject.area === 'วิทยาศาสตร์และเทคโนโลยี') {
+    return TECH_HINTS.some((k) => hay.toLowerCase().includes(k.toLowerCase())) ? 'เทคโนโลยี' : 'วิทยาศาสตร์';
+  }
+  if (subject.area === 'ภาษาต่างประเทศ') {
+    return 'อังกฤษ'; // ไม่เดาจากชื่อ → ค่าเริ่มต้นเป็นอังกฤษไว้ก่อน (แก้เป็นภาษาอื่นได้ในฟอร์มรายวิชา)
+  }
+  return undefined;
 }
 
-/** กลุ่มสำหรับคิดภาระงาน = กลุ่มสาระ แต่แยกวิทยาศาสตร์และเทคโนโลยีเป็น 2 สาย */
+/**
+ * กลุ่มย่อยของวิชา (ที่ใช้จริงในการคิดอัตรากำลัง)
+ * - คืน undefined ถ้ากลุ่มสาระไม่ต้องแยกกลุ่มย่อย หรือเดา/ระบุไม่ได้
+ * - ระบุเอง (subject.subGroup) มาก่อน ; ไม่ระบุจึงเดาจากชื่อ/รหัส
+ */
+export function subGroupOf(subject: Subject): string | undefined {
+  if (!areaSupportsSubGroup(subject.area)) return undefined;
+  const explicit = subject.subGroup?.trim();
+  if (explicit) return explicit;
+  return autoSubGroup(subject);
+}
+
+/** กลุ่มสำหรับคิดภาระงาน = กลุ่มสาระ แต่กลุ่มที่แยกกลุ่มย่อยจะกลายเป็นหลายแถว */
 export interface WorkloadGroup {
   key: string; // id ใช้ในตาราง/ดรอปดาวน์
   label: string; // ชื่อที่แสดง
   area: Area; // กลุ่มสาระจริง
-  track?: SciTechTrack; // สายย่อย (เฉพาะวิทยาศาสตร์และเทคโนโลยี)
+  subGroup?: string; // กลุ่มย่อย (เช่น สาย/ภาษา) — undefined = ทั้งกลุ่มสาระ หรือ "ไม่ระบุ"
 }
 
-/** คีย์กลุ่มภาระงานของวิชาหนึ่ง (แยกสายให้กลุ่มวิทยาศาสตร์และเทคโนโลยี) */
+/** คีย์กลุ่มภาระงานของวิชาหนึ่ง (แยกกลุ่มย่อยให้กลุ่มสาระที่รองรับ) */
 export function subjectWorkloadKey(subject: Subject): string {
-  const track = sciTechTrack(subject);
-  return track ? `${SCI_TECH_AREA}::${track}` : subject.area;
+  const sg = subGroupOf(subject);
+  return sg ? `${subject.area}::${sg}` : subject.area;
 }
 
-/** รายการกลุ่มภาระงานทั้งหมด (เรียงตาม AREAS โดยแทรกวิทย์/เทคโนฯ แทนที่กลุ่มรวม) */
-export function workloadGroups(): WorkloadGroup[] {
+/**
+ * รายการกลุ่มภาระงานทั้งหมด (อิงตาม AREAS)
+ * - กลุ่มสาระที่แยกกลุ่มย่อย → แตกเป็นหลายแถวตามกลุ่มย่อยที่พบในข้อมูล (+ ตัวเลือกตายตัว)
+ *   และเพิ่มแถว "(ไม่ระบุ…)" ถ้ามีวิชาที่ยังจัดกลุ่มย่อยไม่ได้
+ */
+export function workloadGroups(subjects: Subject[], teachers: Teacher[] = []): WorkloadGroup[] {
   const groups: WorkloadGroup[] = [];
   for (const area of AREAS) {
-    if (area === SCI_TECH_AREA) {
-      groups.push({ key: `${area}::วิทยาศาสตร์`, label: 'วิทยาศาสตร์', area, track: 'วิทยาศาสตร์' });
-      groups.push({ key: `${area}::เทคโนโลยี`, label: 'เทคโนโลยี', area, track: 'เทคโนโลยี' });
-    } else {
+    const cfg = SUBGROUP_AREAS[area];
+    if (!cfg) {
       groups.push({ key: area, label: area, area });
+      continue;
     }
+    const subs = new Set<string>(cfg.fixed ?? []);
+    for (const s of subjects) {
+      if (s.area !== area) continue;
+      const sg = subGroupOf(s);
+      if (sg) subs.add(sg);
+    }
+    for (const t of teachers) {
+      if (t.area === area && t.subGroup?.trim()) subs.add(t.subGroup.trim());
+    }
+    const sorted = [...subs].sort((a, b) => a.localeCompare(b, 'th'));
+    for (const sg of sorted) groups.push({ key: `${area}::${sg}`, label: sg, area, subGroup: sg });
+
+    const hasUntagged = subjects.some((s) => s.area === area && !subGroupOf(s));
+    if (hasUntagged) groups.push({ key: area, label: `${area} (ไม่ระบุ${cfg.label})`, area });
+    if (sorted.length === 0 && !hasUntagged) groups.push({ key: area, label: area, area });
   }
   return groups;
 }
@@ -554,17 +592,18 @@ export interface GroupWorkload extends WorkloadGroup {
 }
 
 /**
- * สรุปคาบสอนรวม + ครูที่ต้องใช้ ต่อ "กลุ่มภาระงาน" (แยกสายวิทย์/เทคโนฯ)
- * เหมือน workloadByArea แต่วิทยาศาสตร์และเทคโนโลยีถูกแยกเป็น 2 แถวเพื่อคิดอัตรากำลังแยกกัน
+ * สรุปคาบสอนรวม + ครูที่ต้องใช้ ต่อ "กลุ่มภาระงาน" (แยกกลุ่มย่อยของกลุ่มสาระที่รองรับ)
+ * เหมือน workloadByArea แต่กลุ่มสาระที่สอนข้ามกลุ่มย่อยไม่ได้ถูกแยกเป็นหลายแถวเพื่อคิดอัตรากำลังแยกกัน
  */
 export function workloadByGroup(
   offerings: Offering[],
   subjects: Subject[],
+  teachers: Teacher[],
   settings: Settings,
   filter: SemesterFilter = 'ปี',
   coupledGroups: CoupledClassGroup[] = [],
 ): GroupWorkload[] {
-  const groups = workloadGroups();
+  const groups = workloadGroups(subjects, teachers);
   const acc = new Map<string, { periods: number; count: number }>();
   for (const g of groups) acc.set(g.key, { periods: 0, count: 0 });
 
@@ -657,14 +696,14 @@ export function teacherWorkloadInArea(
   teachers: Teacher[],
   filter: SemesterFilter = 'ปี',
   coupledGroups: CoupledClassGroup[] = [],
-  track?: SciTechTrack, // ถ้าระบุ = กรองเฉพาะสายนั้นในกลุ่มวิทยาศาสตร์และเทคโนโลยี
+  match?: (subject: Subject) => boolean, // ถ้าระบุ = กรองเฉพาะวิชาที่ผ่านเงื่อนไข (เช่น กลุ่มย่อยหนึ่ง)
 ): TeacherWorkload[] {
   const tMap = teacherMap(teachers);
   const acc = new Map<string, { periods: number; count: number }>();
 
   for (const unit of teachingUnits(offerings, subjects, coupledGroups, filter)) {
     if (unit.subject.area !== area) continue;
-    if (track && sciTechTrack(unit.subject) !== track) continue;
+    if (match && !match(unit.subject)) continue;
     const key = unit.teacherId ?? '__none__';
     const b = acc.get(key) ?? { periods: 0, count: 0 };
     b.periods += unit.periods;

@@ -6,11 +6,10 @@ import {
   compareAreas,
   type Area,
   type Level,
-  type SciTechTrack,
   type Subject,
   type SubjectType,
 } from '../types';
-import { creditsToPeriods } from '../calculations';
+import { SUBGROUP_AREAS, areaSupportsSubGroup, creditsToPeriods, subGroupOf } from '../calculations';
 import { downloadTemplate, parseSubjectFile, type ParseResult } from '../importExcel';
 import { Modal } from './common/Modal';
 import { ConfirmDialog, type ConfirmState } from './common/ConfirmDialog';
@@ -269,26 +268,48 @@ export function Subjects({ api }: Props) {
                 value={draft.area}
                 onChange={(e) => {
                   const area = e.target.value as Area;
-                  // ออกจากกลุ่มวิทยาศาสตร์และเทคโนโลยี → ล้างสายทิ้ง
-                  setDraft({ ...draft, area, track: area === 'วิทยาศาสตร์และเทคโนโลยี' ? draft.track : undefined });
+                  // เปลี่ยนกลุ่มสาระ → ล้างกลุ่มย่อยทิ้ง (คนละความหมาย)
+                  setDraft({ ...draft, area, subGroup: undefined });
                 }}
               >
                 {AREAS.map((a) => (<option key={a} value={a}>{a}</option>))}
               </select>
             </div>
-            {draft.area === 'วิทยาศาสตร์และเทคโนโลยี' && (
-              <div className="field">
-                <label>สาย (ในกลุ่มวิทย์ฯ)</label>
-                <select
-                  value={draft.track ?? ''}
-                  onChange={(e) => setDraft({ ...draft, track: e.target.value === '' ? undefined : (e.target.value as SciTechTrack) })}
-                >
-                  <option value="">— เดาจากชื่อ/รหัส —</option>
-                  <option value="วิทยาศาสตร์">วิทยาศาสตร์</option>
-                  <option value="เทคโนโลยี">เทคโนโลยี</option>
-                </select>
-              </div>
-            )}
+            {areaSupportsSubGroup(draft.area) && (() => {
+              const cfg = SUBGROUP_AREAS[draft.area]!;
+              const suggestions = [...new Set(
+                data.subjects
+                  .filter((s) => s.area === draft.area)
+                  .map((s) => subGroupOf(s))
+                  .filter((v): v is string => !!v),
+              )].sort((a, b) => a.localeCompare(b, 'th'));
+              return (
+                <div className="field">
+                  <label>{cfg.label} (ในกลุ่ม{draft.area})</label>
+                  {cfg.fixed ? (
+                    <select
+                      value={draft.subGroup ?? ''}
+                      onChange={(e) => setDraft({ ...draft, subGroup: e.target.value || undefined })}
+                    >
+                      <option value="">— เดาจากชื่อ/รหัส —</option>
+                      {cfg.fixed.map((o) => (<option key={o} value={o}>{o}</option>))}
+                    </select>
+                  ) : (
+                    <>
+                      <input
+                        list="subject-subgroup-suggest"
+                        value={draft.subGroup ?? ''}
+                        onChange={(e) => setDraft({ ...draft, subGroup: e.target.value.trim() || undefined })}
+                        placeholder="เว้นว่าง = เดาจากชื่อวิชา · เช่น อังกฤษ, จีน, ญี่ปุ่น"
+                      />
+                      <datalist id="subject-subgroup-suggest">
+                        {suggestions.map((s) => (<option key={s} value={s} />))}
+                      </datalist>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
             <div className="field">
               <label>ประเภท</label>
               <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as SubjectType })}>
