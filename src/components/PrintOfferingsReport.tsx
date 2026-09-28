@@ -84,7 +84,7 @@ export function PrintOfferingsReport({ data, semester, academicYear, screenVisib
               </colgroup>
               <thead>
                 <tr>
-                  <th>ลำดับที่</th>
+                  <th>ลำดับ</th>
                   <th>รหัสวิชา</th>
                   <th>รายวิชา</th>
                   <th>ประเภทวิชา</th>

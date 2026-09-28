@@ -942,26 +942,34 @@ th.sortable:hover { color: var(--text); }
   color: var(--text-muted);
 }
 
-.print-col-order { width: 4%; }
+.print-col-order { width: 7%; }
 .print-col-code { width: 8%; }
-.print-col-name { width: 17%; }
+.print-col-name { width: 16%; }
 .print-col-type { width: 9%; }
 .print-col-credit { width: 6%; }
 .print-col-period { width: 7%; }
 .print-col-term { width: 7%; }
-.print-col-class { width: 17%; }
+.print-col-class { width: 16%; }
 .print-col-count { width: 6%; }
 .print-col-total { width: 6%; }
-.print-col-note { width: 13%; }
+.print-col-note { width: 12%; }
+
+/* ช่องลำดับ: เลขหลักเดียว จัดกึ่งกลาง ไม่ตัดบรรทัด */
+.print-course-table th:first-child,
+.print-course-table td:first-child {
+  white-space: nowrap;
+}
 
 @page {
   size: A4 portrait;
-  margin: 10mm;
+  margin: 15mm; /* ขอบเท่ากันทั้ง 4 ด้าน */
 }
 
 @media print {
   html,
   body {
+    margin: 0 !important;
+    padding: 0 !important;
     background: #fff !important;
     color: #000 !important;
     font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', sans-serif;
@@ -1031,6 +1039,7 @@ th.sortable:hover { color: var(--text); }
     border-collapse: collapse;
     font-size: 14pt;
     line-height: 1.15;
+    border: 0.5mm solid #000; /* กรอบนอกตารางคมชัด */
   }
 
   .print-course-table thead {
