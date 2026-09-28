@@ -942,8 +942,8 @@ th.sortable:hover { color: var(--text); }
   color: var(--text-muted);
 }
 
-.print-col-order { width: 7%; }
-.print-col-code { width: 8%; }
+.print-col-order { width: 5%; }
+.print-col-code { width: 9%; }
 .print-col-name { width: 16%; }
 .print-col-type { width: 9%; }
 .print-col-credit { width: 6%; }
@@ -952,11 +952,13 @@ th.sortable:hover { color: var(--text); }
 .print-col-class { width: 16%; }
 .print-col-count { width: 6%; }
 .print-col-total { width: 6%; }
-.print-col-note { width: 12%; }
+.print-col-note { width: 13%; }
 
-/* ช่องลำดับ: เลขหลักเดียว จัดกึ่งกลาง ไม่ตัดบรรทัด */
+/* ช่องลำดับ (เลข 2 หลัก) และรหัสวิชา: ไม่ตัดบรรทัด */
 .print-course-table th:first-child,
-.print-course-table td:first-child {
+.print-course-table td:first-child,
+.print-course-table th:nth-child(2),
+.print-course-table td:nth-child(2) {
   white-space: nowrap;
 }
 
@@ -1054,13 +1056,24 @@ th.sortable:hover { color: var(--text); }
   .print-course-table th,
   .print-course-table td {
     position: static;
-    padding: 1mm 0.8mm;
+    padding: 0.3mm 0.6mm; /* พื้นที่ระหว่างตัวอักษรกับเส้นตารางน้อยที่สุด */
     border: 0.25mm solid #444;
     color: #000;
     background: #fff;
     white-space: normal;
     overflow-wrap: anywhere;
     vertical-align: top;
+  }
+
+  /* หัวช่อง "ลำดับ" — ฟอนต์เล็กลงให้พอดีช่องแคบ (1 บรรทัด) */
+  .print-course-table th:first-child {
+    font-size: 11pt;
+  }
+
+  /* ช่องหมายเหตุ — ฟอนต์เล็กลง */
+  .print-course-table th:nth-child(11),
+  .print-course-table td:nth-child(11) {
+    font-size: 11pt;
   }
 
   .print-course-table th {
