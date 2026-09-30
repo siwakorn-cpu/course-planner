@@ -124,7 +124,7 @@ export function Teachers({ api }: Props) {
                 const over = periods > data.settings.teacherLoad;
                 return (
                   <tr key={t.id}>
-                    <td>{t.name}</td>
+                    <td>{t.name}{t.assistant && <span className="badge add" style={{ marginLeft: '0.4rem' }}>ช่วยสอน {t.assistPeriods ?? 0} คาบ</span>}</td>
                     <td>{t.area ? <>{t.area}{t.subGroup && <span className="muted"> · {t.subGroup}</span>}</> : <span className="muted">—</span>}</td>
                     <td className="num">{load?.offeringsCount ?? 0}</td>
                     <td className="num"><strong>{periods}</strong></td>
@@ -223,6 +223,27 @@ export function Teachers({ api }: Props) {
               </div>
             );
           })()}
+          <div className="field">
+            <label className="row-gap" style={{ gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={!!draft.assistant}
+                onChange={(e) => setDraft({ ...draft, assistant: e.target.checked || undefined, assistPeriods: e.target.checked ? (draft.assistPeriods ?? 0) : undefined })}
+              />
+              <span>ครูช่วยสอน (มีคาบจำกัด — คาบที่เหลือในกลุ่มสาระจะไปเฉลี่ยครูปกติ)</span>
+            </label>
+          </div>
+          {draft.assistant && (
+            <div className="field">
+              <label>จำนวนคาบที่สอนได้ / สัปดาห์</label>
+              <input
+                type="number"
+                min={0}
+                value={draft.assistPeriods ?? 0}
+                onChange={(e) => setDraft({ ...draft, assistPeriods: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+              />
+            </div>
+          )}
           {err && <p style={{ color: 'var(--danger)', margin: '0.25rem 0 0' }}>{err}</p>}
           <div className="modal-actions">
             <button className="btn" onClick={() => setDraft(null)}>ยกเลิก</button>

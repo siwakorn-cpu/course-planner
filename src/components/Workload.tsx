@@ -60,18 +60,34 @@ export function Workload({ api }: Props) {
     return m;
   }, [openGroup, data.offerings, data.subjects, data.coupledGroups, filter]);
 
-  // จำนวนครูต่อกลุ่ม: กลุ่มปกติ = ครูที่สังกัดกลุ่มสาระ; กลุ่มย่อย = ครูที่สังกัดกลุ่มนี้และระบุกลุ่มย่อยตรงกัน
-  const teacherCountByKey = useMemo(() => {
-    const counts = new Map<string, number>();
+  // อัตรากำลังต่อกลุ่ม: แยกครูช่วยสอน (คาบจำกัด) ออก แล้วเฉลี่ยคาบที่เหลือให้ครูปกติ
+  const staffingByKey = useMemo(() => {
+    const m = new Map<string, {
+      total: number; // ครูทั้งหมดในกลุ่ม
+      regular: number; // ครูปกติ (ไม่ใช่ครูช่วยสอน)
+      assistants: number; // จำนวนครูช่วยสอน
+      assistPeriods: number; // คาบรวมของครูช่วยสอน
+      remaining: number; // คาบที่เหลือให้ครูปกติ
+      avgRegular: number | null; // คาบเฉลี่ยต่อครูปกติ
+    }>();
     for (const g of workload) {
-      counts.set(
-        g.key,
-        areaSupportsSubGroup(g.area)
-          ? data.teachers.filter((t) => t.area === g.area && (t.subGroup?.trim() || undefined) === g.subGroup).length
-          : data.teachers.filter((t) => t.area === g.area).length,
-      );
+      const inGroup = data.teachers.filter((t) => (
+        t.area === g.area && (!areaSupportsSubGroup(g.area) || (t.subGroup?.trim() || undefined) === g.subGroup)
+      ));
+      const assistantsArr = inGroup.filter((t) => t.assistant);
+      const regularArr = inGroup.filter((t) => !t.assistant);
+      const assistPeriods = assistantsArr.reduce((s, t) => s + (t.assistPeriods ?? 0), 0);
+      const remaining = Math.max(0, g.periods - assistPeriods);
+      m.set(g.key, {
+        total: inGroup.length,
+        regular: regularArr.length,
+        assistants: assistantsArr.length,
+        assistPeriods,
+        remaining,
+        avgRegular: regularArr.length > 0 ? remaining / regularArr.length : null,
+      });
     }
-    return counts;
+    return m;
   }, [workload, data.teachers]);
 
   const totals = workload.reduce(
@@ -110,23 +126,20 @@ export function Workload({ api }: Props) {
   const exportCsv = () => {
     const headers = [
       'กลุ่มสาระ', 'จำนวนวิชาที่จัด', 'คาบรวม/สัปดาห์',
-      'จำนวนครูในกลุ่มสาระ', 'คาบเฉลี่ยต่อครูในกลุ่มสาระ',
+      'ครูช่วยสอน (คน)', 'คาบครูช่วยสอน', 'ครูปกติ (คน)',
+      'คาบที่เหลือ', 'คาบเฉลี่ยต่อครูปกติ',
       'ครูที่ต้องใช้ (ปัดขึ้น)', 'ครูที่ต้องใช้ (ทศนิยม)',
     ];
     const rows = workload.map((w) => {
-      const teacherCount = teacherCountByKey.get(w.key) ?? 0;
+      const s = staffingByKey.get(w.key);
       return [
-        w.label, w.offeringsCount, w.periods, teacherCount,
-        teacherCount > 0 ? (w.periods / teacherCount).toFixed(2) : '',
+        w.label, w.offeringsCount, w.periods,
+        s?.assistants ?? 0, s?.assistPeriods ?? 0, s?.regular ?? 0,
+        s?.remaining ?? w.periods,
+        s && s.avgRegular != null ? s.avgRegular.toFixed(2) : '',
         w.teachersRounded, w.teachersNeeded.toFixed(2),
       ];
     });
-    const registeredTeachers = [...teacherCountByKey.values()].reduce((sum, count) => sum + count, 0);
-    rows.push([
-      'รวมทั้งหมด', workload.reduce((a, w) => a + w.offeringsCount, 0), totals.periods, registeredTeachers,
-      registeredTeachers > 0 ? (totals.periods / registeredTeachers).toFixed(2) : '',
-      totals.teachers, (totals.periods / (data.settings.teacherLoad || 1)).toFixed(2),
-    ]);
     const label = filter === 'ปี' ? 'ทั้งปี' : `ภาคเรียน${filter}`;
     downloadCsv(`ภาระงานกลุ่มสาระ-${label}.csv`, headers, rows);
   };
@@ -174,22 +187,25 @@ export function Workload({ api }: Props) {
               <th>กลุ่มสาระ</th>
               <th className="num">วิชาที่จัด</th>
               <th className="num">คาบรวม/สัปดาห์</th>
-              <th className="num">คาบเฉลี่ย/ครูในกลุ่มสาระ</th>
+              <th className="num">คาบเฉลี่ย/ครูปกติ</th>
               <th className="num">ครูที่ต้องใช้</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {workload.map((w) => {
-              const teacherCount = teacherCountByKey.get(w.key) ?? 0;
+              const s = staffingByKey.get(w.key);
               return (
                 <tr key={w.key} className={w.subGroup ? 'sci-tech-row' : undefined}>
                   <td>{w.subGroup ? <span style={{ paddingLeft: '0.8rem' }}>↳ {w.label}</span> : w.label}</td>
                   <td className="num">{w.offeringsCount}</td>
                   <td className="num">{w.periods}</td>
                   <td className="num">
-                    {teacherCount > 0 ? (
-                      <><strong>{(w.periods / teacherCount).toFixed(2)}</strong> <span className="muted">({teacherCount} คน)</span></>
+                    {s && s.avgRegular != null ? (
+                      <>
+                        <strong>{s.avgRegular.toFixed(2)}</strong> <span className="muted">({s.regular} คน)</span>
+                        {s.assistants > 0 && <div className="muted" style={{ fontSize: '0.78rem' }}>ช่วยสอน {s.assistants} คน · {s.assistPeriods} คาบ</div>}
+                      </>
                     ) : (
                       <span className="muted">— {w.subGroup ? '(ยังไม่ระบุครูในกลุ่มย่อยนี้)' : '(ยังไม่ระบุกลุ่มสาระของครู)'}</span>
                     )}
