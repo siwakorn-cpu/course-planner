@@ -364,14 +364,16 @@ export function teachingUnits(
   }
 
   const units = new Map<string, TeachingUnit>();
-  for (const off of offerings) {
+  for (let i = 0; i < offerings.length; i++) {
+    const off = offerings[i];
     if (!inSemester(off, filter)) continue;
     const subject = sMap.get(off.subjectId);
     if (!subject) continue;
     const coupled = coupledLookup.get(`${off.classId}::${off.subjectId}`);
+    // ไม่ควบ: ใช้ index เป็นคีย์ (กันกรณี id ซ้ำ/หาย ไม่ให้ยุบคนละห้องเป็นชุดเดียวโดยไม่ตั้งใจ)
     const key = coupled
       ? `coupled:${coupled.id}:${off.subjectId}:${off.semester}:${off.teacherId ?? '__none__'}:${off.group?.trim() ?? ''}`
-      : `offering:${off.id}`;
+      : `offering:${i}:${off.id ?? ''}`;
     const existing = units.get(key);
     const periods = offeringPeriods(off, subject);
     if (existing) {

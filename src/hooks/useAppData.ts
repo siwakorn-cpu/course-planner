@@ -10,9 +10,13 @@ import { promoteAllData } from '../promote';
 import { seedData } from '../seedData';
 import { applyOfferingSemesterMove, planOfferingSemesterMove } from '../offeringSemester';
 
-/** id สุ่มแบบสั้น สำหรับข้อมูลที่ผู้ใช้เพิ่มเอง */
+// ตัวนับเดินหน้าในแต่ละเซสชัน — กัน id ชนกันแม้สร้างหลายตัวในมิลลิวินาทีเดียว (เช่น เพิ่มทีละมาก ๆ)
+let idCounter = 0;
+
+/** id ไม่ซ้ำ สำหรับข้อมูลที่ผู้ใช้เพิ่มเอง (เวลา + ตัวนับ + สุ่ม) */
 export function newId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  idCounter = (idCounter + 1) % 0xffffff;
+  return `${prefix}-${Date.now().toString(36)}-${idCounter.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export type NewOffering = Omit<Offering, 'id' | 'batchId' | 'createdAt'>;

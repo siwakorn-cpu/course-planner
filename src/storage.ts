@@ -83,9 +83,25 @@ function collectTracks(
   };
 }
 
+/** ซ่อม id ที่ซ้ำ/หายของการจัดสอน (กันแก้ไข/ลบโดนผิดตัว และรายงานยุบห้องผิด) */
+function dedupeOfferingIds(offerings: Offering[]): Offering[] {
+  const seen = new Set<string>();
+  let seq = 0;
+  return offerings.map((o) => {
+    const id = o.id;
+    if (!id || seen.has(id)) {
+      return { ...o, id: `off-fix-${Date.now().toString(36)}-${(seq++).toString(36)}` };
+    }
+    seen.add(id);
+    return o;
+  });
+}
+
 /** ทำให้ก้อนข้อมูลสมบูรณ์เสมอ (กันข้อมูลเสีย/ไม่ครบ) */
 export function normalize(raw: Partial<AppData> | undefined): AppData {
-  const { teachers, offerings } = migrateTeachers(raw?.teachers ?? [], raw?.offerings ?? []);
+  const migrated = migrateTeachers(raw?.teachers ?? [], raw?.offerings ?? []);
+  const teachers = migrated.teachers;
+  const offerings = dedupeOfferingIds(migrated.offerings);
   // เติม cohort='' ให้ข้อมูลเก่าที่ยังไม่มีฟิลด์รุ่น
   const classes = (raw?.classes ?? []).map((c) => ({ ...c, cohort: c.cohort ?? '' }));
   const { plans, groups } = collectTracks(raw?.plans, raw?.groups, classes);
