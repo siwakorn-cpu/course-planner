@@ -86,12 +86,18 @@ export interface Offering {
   group?: string; // กลุ่มเลือกภายในห้อง (ว่าง = ทั้งห้องเรียนร่วมกัน; มีค่า = เฉพาะกลุ่มนั้น เช่น "ภาษาจีน")
 }
 
-/** กลุ่มห้องควบ: ระบุห้องที่จับกลุ่ม และวิชาที่เรียนรวมกันจริง */
+/** วิชาที่เรียนรวมในกลุ่มห้องควบ: ระบุชัดว่าวิชานี้ "ห้องไหนบ้าง" เรียนรวมกัน */
+export interface CoupledJoint {
+  subjectId: string;
+  classIds: string[]; // อย่างน้อย 2 ห้อง และต้องเป็นห้องในกลุ่ม
+}
+
+/** กลุ่มห้องควบ: ระบุห้องที่จับกลุ่ม และคู่ห้องที่เรียนรวมกันจริงรายวิชา */
 export interface CoupledClassGroup {
   id: string;
   name: string;
   classIds: string[];
-  jointSubjectIds: string[];
+  joints: CoupledJoint[];
 }
 
 /** เกณฑ์หน่วยกิตการจบของแต่ละระดับ (แก้ไขได้ในแอป) */

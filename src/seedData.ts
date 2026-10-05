@@ -207,7 +207,10 @@ function buildCoupledGroups(subjects: Subject[], classes: ClassRoom[]): CoupledC
     name: 'ห้องควบ ม.1/1-2',
     classIds: [m11.id, m12.id],
     // ภาษาไทย วิทยาศาสตร์ และแนะแนวเรียนรวม; คณิตศาสตร์/อังกฤษยังนับแยกห้อง
-    jointSubjectIds: ['ท21101', 'ว21101', 'ก21901'].map((code) => byCode.get(code)).filter((x): x is string => !!x),
+    joints: ['ท21101', 'ว21101', 'ก21901']
+      .map((code) => byCode.get(code))
+      .filter((x): x is string => !!x)
+      .map((subjectId) => ({ subjectId, classIds: [m11.id, m12.id] })),
   }];
 }
 

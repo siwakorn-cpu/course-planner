@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppData, ClassRoom, CompletedCourse, CoupledClassGroup, Level, Offering, Settings, Subject, Teacher } from '../types';
 import { gradeToLevel } from '../types';
-import { emptyData, loadData, saveData } from '../storage';
+import { emptyData, loadData, pruneCoupledGroups, saveData } from '../storage';
 import { promoteAllData } from '../promote';
 import { seedData } from '../seedData';
 import { applyOfferingSemesterMove, planOfferingSemesterMove } from '../offeringSemester';
@@ -139,7 +139,7 @@ export function useAppData(): AppDataApi {
       subjects: d.subjects.filter((x) => x.id !== id),
       // ลบการจัดสอนที่อ้างถึงวิชานี้ด้วย เพื่อไม่ให้ข้อมูลค้าง
       offerings: d.offerings.filter((o) => o.subjectId !== id),
-      coupledGroups: d.coupledGroups.map((g) => ({ ...g, jointSubjectIds: g.jointSubjectIds.filter((x) => x !== id) })),
+      coupledGroups: pruneCoupledGroups(d.coupledGroups, { subjectId: id }),
     }));
   }, []);
 
@@ -179,9 +179,7 @@ export function useAppData(): AppDataApi {
       classes: d.classes.filter((x) => x.id !== id),
       offerings: d.offerings.filter((o) => o.classId !== id),
       completed: d.completed.filter((c) => c.classId !== id),
-      coupledGroups: d.coupledGroups
-        .map((g) => ({ ...g, classIds: g.classIds.filter((x) => x !== id) }))
-        .filter((g) => g.classIds.length >= 2),
+      coupledGroups: pruneCoupledGroups(d.coupledGroups, { classIds: [id] }),
     }));
   }, []);
 
@@ -227,9 +225,7 @@ export function useAppData(): AppDataApi {
       classes: d.classes.filter((c) => !set.has(c.id)),
       offerings: d.offerings.filter((o) => !set.has(o.classId)),
       completed: d.completed.filter((c) => !set.has(c.classId)),
-      coupledGroups: d.coupledGroups
-        .map((g) => ({ ...g, classIds: g.classIds.filter((id) => !set.has(id)) }))
-        .filter((g) => g.classIds.length >= 2),
+      coupledGroups: pruneCoupledGroups(d.coupledGroups, { classIds: set }),
     }));
   }, []);
 

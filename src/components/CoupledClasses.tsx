@@ -10,9 +10,20 @@ interface Props {
   api: AppDataApi;
 }
 
-type Draft = Omit<CoupledClassGroup, 'id'> & { id?: string };
+/** joints ระหว่างแก้ไข: วิชา → ห้องที่เรียนรวม (คงลำดับที่ติ๊ก) */
+type Draft = Omit<CoupledClassGroup, 'id' | 'joints'> & { id?: string; joints: Record<string, string[]> };
 
-const emptyDraft = (): Draft => ({ name: '', classIds: [], jointSubjectIds: [] });
+const emptyDraft = (): Draft => ({ name: '', classIds: [], joints: {} });
+
+const toDraft = (g: CoupledClassGroup): Draft => ({
+  id: g.id,
+  name: g.name,
+  classIds: [...g.classIds],
+  joints: Object.fromEntries(g.joints.map((j) => [j.subjectId, [...j.classIds]])),
+});
+
+const sortClassIds = (ids: string[], order: Map<string, number>) =>
+  [...ids].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
 
 export function CoupledClasses({ api }: Props) {
   const { data } = api;
@@ -24,9 +35,13 @@ export function CoupledClasses({ api }: Props) {
   const classMap = useMemo(() => new Map(data.classes.map((c) => [c.id, c])), [data.classes]);
   const subjectMap = useMemo(() => new Map(data.subjects.map((s) => [s.id, s])), [data.subjects]);
 
+  const sortedClasses = [...data.classes].sort((a, b) =>
+    a.grade === b.grade ? a.section.localeCompare(b.section, 'th', { numeric: true }) : a.grade.localeCompare(b.grade, 'th'),
+  );
+
   const openDraft = (next: Draft) => {
     setError('');
-    setDraft({ ...next, classIds: [...next.classIds], jointSubjectIds: [...next.jointSubjectIds] });
+    setDraft(next);
   };
 
   const selectedClasses = draft
@@ -34,13 +49,24 @@ export function CoupledClasses({ api }: Props) {
     : [];
   const selectedGrade = selectedClasses[0]?.grade;
 
-  const usedByOther = useMemo(() => {
-    const set = new Set<string>();
+  // ห้อง+วิชาที่ควบอยู่ในกลุ่มอื่นแล้ว (ห้อง+วิชาหนึ่งควบได้ชุดเดียว) → ชื่อกลุ่มนั้น
+  const takenByOther = useMemo(() => {
+    const map = new Map<string, string>();
     for (const group of data.coupledGroups) {
       if (group.id === draft?.id) continue;
-      group.classIds.forEach((id) => set.add(id));
+      for (const j of group.joints) j.classIds.forEach((id) => map.set(`${id}::${j.subjectId}`, group.name));
     }
-    return set;
+    return map;
+  }, [data.coupledGroups, draft?.id]);
+
+  // ห้องที่อยู่ในกลุ่มอื่นด้วย (อยู่ได้หลายกลุ่ม แค่แจ้งให้รู้)
+  const otherGroupsOf = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const group of data.coupledGroups) {
+      if (group.id === draft?.id) continue;
+      group.classIds.forEach((id) => map.set(id, [...(map.get(id) ?? []), group.name]));
+    }
+    return map;
   }, [data.coupledGroups, draft?.id]);
 
   const availableSubjects = useMemo(() => {
@@ -56,7 +82,10 @@ export function CoupledClasses({ api }: Props) {
     }
     return data.subjects
       .filter((s) => s.level === level && (classesBySubject.get(s.id)?.size ?? 0) > 0)
-      .map((subject) => ({ subject, count: classesBySubject.get(subject.id)?.size ?? 0 }))
+      .map((subject) => {
+        const having = classesBySubject.get(subject.id) ?? new Set<string>();
+        return { subject, count: having.size, classIds: draft.classIds.filter((id) => having.has(id)) };
+      })
       .sort((a, b) => compareAreas(a.subject.area, b.subject.area) || a.subject.code.localeCompare(b.subject.code, 'th'));
   }, [draft, selectedGrade, data.offerings, data.subjects]);
 
@@ -64,15 +93,28 @@ export function CoupledClasses({ api }: Props) {
     if (!draft) return;
     const exists = draft.classIds.includes(id);
     const classIds = exists ? draft.classIds.filter((x) => x !== id) : [...draft.classIds, id];
-    setDraft({ ...draft, classIds });
+    // เอาห้องออกจากกลุ่ม → เอาออกจากทุกวิชาที่ควบด้วย
+    const joints = exists
+      ? Object.fromEntries(Object.entries(draft.joints).map(([sid, ids]) => [sid, ids.filter((x) => x !== id)]))
+      : draft.joints;
+    setDraft({ ...draft, classIds, joints });
   };
 
-  const toggleSubject = (id: string) => {
+  /** ติ๊กวิชา = เริ่มจากทุกห้องที่มีวิชานี้ (และยังไม่ควบกับกลุ่มอื่น) แล้วค่อยเอาห้องที่ไม่ควบออก */
+  const toggleSubject = (subjectId: string, candidates: string[]) => {
     if (!draft) return;
-    const jointSubjectIds = draft.jointSubjectIds.includes(id)
-      ? draft.jointSubjectIds.filter((x) => x !== id)
-      : [...draft.jointSubjectIds, id];
-    setDraft({ ...draft, jointSubjectIds });
+    const joints = { ...draft.joints };
+    if (joints[subjectId]) delete joints[subjectId];
+    else joints[subjectId] = candidates.filter((id) => !takenByOther.has(`${id}::${subjectId}`));
+    setDraft({ ...draft, joints });
+  };
+
+  const toggleJointClass = (subjectId: string, classId: string) => {
+    if (!draft) return;
+    const current = draft.joints[subjectId] ?? [];
+    const next = current.includes(classId) ? current.filter((x) => x !== classId) : [...current, classId];
+    setError('');
+    setDraft({ ...draft, joints: { ...draft.joints, [subjectId]: next } });
   };
 
   const save = () => {
@@ -82,21 +124,22 @@ export function CoupledClasses({ api }: Props) {
     if (classes.length < 2) return setError('กรุณาเลือกอย่างน้อย 2 ห้อง');
     if (new Set(classes.map((c) => c.grade)).size > 1) return setError('ห้องในกลุ่มควบต้องอยู่ระดับชั้นเดียวกัน');
 
-    const validJoint = new Set(availableSubjects.filter((x) => x.count >= 2).map((x) => x.subject.id));
-    const payload = {
-      name: draft.name.trim(),
-      classIds: draft.classIds,
-      jointSubjectIds: draft.jointSubjectIds.filter((id) => validJoint.has(id)),
-    };
+    const order = new Map(sortedClasses.map((c, i) => [c.id, i]));
+    const inGroup = new Set(draft.classIds);
+    const joints = [];
+    for (const { subject } of availableSubjects) {
+      const ids = draft.joints[subject.id];
+      if (!ids) continue;
+      const valid = ids.filter((id) => inGroup.has(id) && !takenByOther.has(`${id}::${subject.id}`));
+      if (valid.length < 2) return setError(`วิชา ${subject.code} ต้องเลือกห้องที่เรียนรวมอย่างน้อย 2 ห้อง (หรือเอาติ๊กวิชาออก)`);
+      joints.push({ subjectId: subject.id, classIds: sortClassIds(valid, order) });
+    }
+    const payload = { name: draft.name.trim(), classIds: sortClassIds(draft.classIds, order), joints };
     if (draft.id) api.updateCoupledGroup({ ...payload, id: draft.id });
     else api.addCoupledGroup(payload);
     setDraft(null);
     setToast({ message: 'บันทึกกลุ่มห้องควบแล้ว', type: 'success' });
   };
-
-  const sortedClasses = [...data.classes].sort((a, b) =>
-    a.grade === b.grade ? a.section.localeCompare(b.section, 'th') : a.grade.localeCompare(b.grade, 'th'),
-  );
 
   return (
     <div>
@@ -107,8 +150,9 @@ export function CoupledClasses({ api }: Props) {
 
       <div className="card coupled-help">
         <strong>หลักการนับคาบ</strong>
-        <span><b>เรียนรวม:</b> วิชา + ภาคเรียน + ครูตรงกัน → นับคาบเพียง 1 ชุด</span>
-        <span><b>เรียนแยก:</b> ไม่ติ๊กวิชานั้น → นับคาบแยกทุกห้องตามเดิม</span>
+        <span><b>เรียนรวม:</b> ติ๊กวิชา แล้วเลือก <u>เฉพาะห้องที่เรียนรวมกันจริง</u> (ภาคเรียน + ครูต้องตรงกัน) → นับคาบเพียง 1 ชุด</span>
+        <span><b>เรียนแยก:</b> ไม่ติ๊กวิชา หรือไม่เลือกห้องนั้น → นับคาบแยกห้องตามเดิม</span>
+        <span>ห้องหนึ่งอยู่ได้หลายกลุ่ม แต่ในแต่ละวิชาควบได้เพียงชุดเดียว</span>
       </div>
 
       <div className="toolbar">
@@ -123,8 +167,10 @@ export function CoupledClasses({ api }: Props) {
         <div className="grid coupled-grid">
           {data.coupledGroups.map((group) => {
             const classes = group.classIds.map((id) => classMap.get(id)).filter((c): c is NonNullable<typeof c> => !!c);
-            const subjects = group.jointSubjectIds.map((id) => subjectMap.get(id)).filter((s): s is NonNullable<typeof s> => !!s)
-              .sort((a, b) => compareAreas(a.area, b.area) || a.code.localeCompare(b.code, 'th'));
+            const joints = group.joints
+              .map((j) => ({ subject: subjectMap.get(j.subjectId), classIds: j.classIds }))
+              .filter((j): j is { subject: NonNullable<typeof j.subject>; classIds: string[] } => !!j.subject)
+              .sort((a, b) => compareAreas(a.subject.area, b.subject.area) || a.subject.code.localeCompare(b.subject.code, 'th'));
             return (
               <div className="card coupled-card" key={group.id}>
                 <div className="row-gap" style={{ justifyContent: 'space-between' }}>
@@ -133,13 +179,22 @@ export function CoupledClasses({ api }: Props) {
                 </div>
                 <p className="coupled-classes">{classes.map((c) => classLabel(c, true)).join(' + ')}</p>
                 <div className="coupled-subjects">
-                  <strong>วิชาที่เรียนรวม {subjects.length} วิชา</strong>
-                  {subjects.length === 0
+                  <strong>วิชาที่เรียนรวม {joints.length} วิชา</strong>
+                  {joints.length === 0
                     ? <span className="muted">ยังไม่ได้เลือก (ทุกวิชายังนับแยกห้อง)</span>
-                    : <div className="row-gap">{subjects.map((s) => <span className="chip" key={s.id}>{s.code} {s.name}</span>)}</div>}
+                    : (
+                      <ul className="coupled-joint-list">
+                        {joints.map(({ subject, classIds }) => (
+                          <li key={subject.id}>
+                            <span>{subject.code} {subject.name}</span>
+                            <b>{classIds.map((id) => classMap.get(id)).filter((c): c is NonNullable<typeof c> => !!c).map((c) => classLabel(c, true)).join(' + ')}</b>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                 </div>
                 <div className="row-gap" style={{ marginTop: '0.65rem' }}>
-                  <button className="btn small" onClick={() => openDraft(group)}>แก้ไข</button>
+                  <button className="btn small" onClick={() => openDraft(toDraft(group))}>แก้ไข</button>
                   <button className="btn small ghost" onClick={() => setConfirmState({
                     title: 'ลบกลุ่มห้องควบ',
                     message: `ลบกลุ่ม “${group.name}” ?\nคาบสอนจะกลับไปนับแยกทุกห้อง`,
@@ -161,16 +216,17 @@ export function CoupledClasses({ api }: Props) {
           </div>
 
           <div className="field">
-            <label>เลือกห้อง (อย่างน้อย 2 ห้อง และต้องอยู่ชั้นเดียวกัน)</label>
+            <label>ห้องในกลุ่ม (อย่างน้อย 2 ห้อง และต้องอยู่ชั้นเดียวกัน)</label>
             <div className="coupled-choice-grid">
               {sortedClasses.map((c) => {
                 const wrongGrade = !!selectedGrade && c.grade !== selectedGrade && !draft.classIds.includes(c.id);
-                const disabled = usedByOther.has(c.id) || wrongGrade;
+                const disabled = wrongGrade;
+                const others = otherGroupsOf.get(c.id);
                 return (
                   <label className={`choice-row${disabled ? ' disabled' : ''}`} key={c.id}>
                     <input type="checkbox" checked={draft.classIds.includes(c.id)} disabled={disabled} onChange={() => toggleClass(c.id)} />
                     <span>{classLabel(c, true)}</span>
-                    {usedByOther.has(c.id) && <small>อยู่ในกลุ่มอื่นแล้ว</small>}
+                    {others && <small title={others.join(', ')}>อยู่ใน {others.length} กลุ่มอื่นด้วย</small>}
                   </label>
                 );
               })}
@@ -180,7 +236,7 @@ export function CoupledClasses({ api }: Props) {
           <div className="field">
             <label>ตั้งค่ารายวิชา</label>
             <p className="muted" style={{ margin: '0 0 0.4rem', fontSize: '0.82rem' }}>
-              ติ๊ก = เรียนรวมกันและนับคาบครูชุดเดียว · ไม่ติ๊ก = เรียนแยกและนับคาบทุกห้อง
+              ติ๊กวิชา แล้วเลือกห้องที่เรียนรวมกันจริง (นับคาบครูชุดเดียว) · ห้องที่ไม่เลือก = เรียนแยก
             </p>
             {draft.classIds.length < 2 ? (
               <div className="empty compact">เลือกห้องอย่างน้อย 2 ห้องก่อน</div>
@@ -188,14 +244,34 @@ export function CoupledClasses({ api }: Props) {
               <div className="empty compact">ยังไม่มีรายวิชาที่จัดให้ห้องที่เลือก</div>
             ) : (
               <div className="coupled-subject-list">
-                {availableSubjects.map(({ subject, count }) => {
-                  const ready = count >= 2;
+                {availableSubjects.map(({ subject, count, classIds }) => {
+                  const free = classIds.filter((id) => !takenByOther.has(`${id}::${subject.id}`));
+                  const selected = draft.joints[subject.id];
+                  const ready = free.length >= 2 || !!selected;
                   return (
-                    <label className={`choice-row${ready ? '' : ' disabled'}`} key={subject.id}>
-                      <input type="checkbox" checked={draft.jointSubjectIds.includes(subject.id)} disabled={!ready} onChange={() => toggleSubject(subject.id)} />
-                      <span><b>{subject.code}</b> {subject.name}</span>
-                      <small>{ready ? `มีใน ${count}/${draft.classIds.length} ห้อง` : `มีเพียง ${count} ห้อง`}</small>
-                    </label>
+                    <div className="coupled-subject-item" key={subject.id}>
+                      <label className={`choice-row${ready ? '' : ' disabled'}`}>
+                        <input type="checkbox" checked={!!selected} disabled={!ready} onChange={() => toggleSubject(subject.id, classIds)} />
+                        <span><b>{subject.code}</b> {subject.name}</span>
+                        <small>{ready ? `มีใน ${count}/${draft.classIds.length} ห้อง` : free.length < count ? 'ควบกับกลุ่มอื่นแล้ว' : `มีเพียง ${count} ห้อง`}</small>
+                      </label>
+                      {selected && (
+                        <div className="coupled-joint-classes">
+                          <span className="muted">ห้องที่เรียนรวม:</span>
+                          {classIds.map((id) => {
+                            const c = classMap.get(id);
+                            const takenBy = takenByOther.get(`${id}::${subject.id}`);
+                            return c && (
+                              <label key={id} className={`joint-class${takenBy ? ' disabled' : ''}`} title={takenBy ? `ควบวิชานี้ในกลุ่ม “${takenBy}” แล้ว` : undefined}>
+                                <input type="checkbox" checked={selected.includes(id)} disabled={!!takenBy} onChange={() => toggleJointClass(subject.id, id)} />
+                                {classLabel(c, true)}
+                              </label>
+                            );
+                          })}
+                          {selected.length < 2 && <small style={{ color: 'var(--danger)' }}>เลือกอย่างน้อย 2 ห้อง</small>}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>

@@ -22,6 +22,7 @@ import {
   totalTeachersNeeded,
   workloadByArea,
 } from './calculations';
+import { subjectExportTable } from './exportSubjects';
 import {
   AREAS,
   compareAreas,
@@ -235,7 +236,7 @@ describe('การนับคาบห้องควบ', () => {
     { id: 'joint-1', classId: 'c1', subjectId: 's1', semester: 1, teacherId: 't1' },
     { id: 'joint-2', classId: 'c2', subjectId: 's1', semester: 1, teacherId: 't1' },
   ];
-  const coupled = [{ id: 'cg1', name: 'ห้องควบ', classIds: ['c1', 'c2'], jointSubjectIds: ['s1'] }];
+  const coupled = [{ id: 'cg1', name: 'ห้องควบ', classIds: ['c1', 'c2'], joints: [{ subjectId: 's1', classIds: ['c1', 'c2'] }] }];
   const classes: ClassRoom[] = [
     { id: 'c1', grade: 'ม.1', section: '1', plan: '', students: 40, cohort: '' },
     { id: 'c2', grade: 'ม.1', section: '2', plan: '', students: 40, cohort: '' },
@@ -281,6 +282,24 @@ describe('การนับคาบห้องควบ', () => {
     const rows = subjectPrintRows(sameSubjectOfferings, subjects, classes, [], 1);
     expect(rows[0]).toMatchObject({ teachingGroupCount: 2, totalPeriods: 6, classNames: '1/1, 1/2' });
   });
+
+  it('ควบเฉพาะห้องที่ระบุในชุด — ห้องอื่นในกลุ่มเดียวกัน (ครูคนเดียวกัน) ไม่ถูกยุบรวม', () => {
+    // กลุ่ม 4 ห้อง ครูคนเดียวสอนทุกห้อง แต่ตั้งใจควบแค่ 1/1+1/2 และ 1/3+1/4 (ไม่ใช่ 1/2+1/3)
+    const four: ClassRoom[] = ['1', '2', '3', '4'].map((n) => ({ id: `c${n}`, grade: 'ม.1', section: n, plan: '', students: 40, cohort: '' }));
+    const offs: Offering[] = four.map((c, i) => ({ id: `o${i}`, classId: c.id, subjectId: 's1', semester: 1, teacherId: 't1' }));
+    const groups = [{
+      id: 'cg', name: 'ม.1/1-4', classIds: four.map((c) => c.id),
+      joints: [{ subjectId: 's1', classIds: ['c1', 'c2'] }, { subjectId: 's1', classIds: ['c3', 'c4'] }],
+    }];
+    const rows = subjectPrintRows(offs, subjects, four, groups, 1);
+    expect(rows[0]).toMatchObject({ teachingGroupCount: 2, totalPeriods: 6, notes: 'ควบรวม 1/1+1/2; ควบรวม 1/3+1/4' });
+
+    // ห้องที่ไม่อยู่ในชุดควบ → แยกห้อง
+    const onlyPair = [{ ...groups[0], joints: [{ subjectId: 's1', classIds: ['c1', 'c2'] }] }];
+    expect(subjectPrintRows(offs, subjects, four, onlyPair, 1)[0]).toMatchObject({
+      teachingGroupCount: 3, classNames: '1/1+1/2, 1/3, 1/4', notes: 'ควบรวม 1/1+1/2',
+    });
+  });
 });
 
 describe('ภาระงานรายครู', () => {
@@ -320,5 +339,13 @@ describe('ภาพรวมทั้งโรงเรียน', () => {
   it('ครูรวมที่ต้องใช้ปัดขึ้น', () => {
     const custom: Settings = { ...settings, teacherLoad: 20 };
     expect(totalTeachersNeeded(offerings, subjects, custom, 'ปี')).toBe(1); // ceil(10/20)
+  });
+});
+
+describe('ส่งออกคลังรายวิชา', () => {
+  it('ส่งออกเฉพาะคอลัมน์ที่เลือก ตามลำดับมาตรฐาน และลำดับเลขเริ่ม 1', () => {
+    const t = subjectExportTable(subjects.slice(0, 2), ['periods', 'code', 'no']);
+    expect(t.header).toEqual(['ลำดับ', 'รหัสวิชา', 'คาบ/สัปดาห์']);
+    expect(t.rows).toEqual([[1, subjects[0].code, subjects[0].periods], [2, subjects[1].code, subjects[1].periods]]);
   });
 });

@@ -347,7 +347,7 @@ export interface SubjectPrintRow {
 
 /**
  * รวม Offering ที่เป็นการสอนครั้งเดียวกันของห้องควบ
- * จะรวมเฉพาะเมื่อกลุ่มห้อง รายวิชา ภาคเรียน ครู และกลุ่มเลือกตรงกัน
+ * จะรวมเฉพาะห้องที่อยู่ในชุดควบเดียวกันของวิชานั้น และภาคเรียน ครู กลุ่มเลือกตรงกัน
  */
 export function teachingUnits(
   offerings: Offering[],
@@ -356,11 +356,15 @@ export function teachingUnits(
   filter: SemesterFilter = 'ปี',
 ): TeachingUnit[] {
   const sMap = subjectMap(subjects);
-  const coupledLookup = new Map<string, CoupledClassGroup>();
+  // ห้อง+วิชา → ชุดควบที่ระบุไว้ชัด (ควบเฉพาะห้องที่อยู่ในชุดเดียวกันเท่านั้น)
+  const coupledLookup = new Map<string, { group: CoupledClassGroup; jointKey: string }>();
   for (const cg of coupledGroups) {
-    for (const classId of cg.classIds) {
-      for (const subjectId of cg.jointSubjectIds) coupledLookup.set(`${classId}::${subjectId}`, cg);
-    }
+    cg.joints.forEach((joint, j) => {
+      for (const classId of joint.classIds) {
+        const key = `${classId}::${joint.subjectId}`;
+        if (!coupledLookup.has(key)) coupledLookup.set(key, { group: cg, jointKey: `${cg.id}:${j}` });
+      }
+    });
   }
 
   const units = new Map<string, TeachingUnit>();
@@ -372,7 +376,7 @@ export function teachingUnits(
     const coupled = coupledLookup.get(`${off.classId}::${off.subjectId}`);
     // ไม่ควบ: ใช้ index เป็นคีย์ (กันกรณี id ซ้ำ/หาย ไม่ให้ยุบคนละห้องเป็นชุดเดียวโดยไม่ตั้งใจ)
     const key = coupled
-      ? `coupled:${coupled.id}:${off.subjectId}:${off.semester}:${off.teacherId ?? '__none__'}:${off.group?.trim() ?? ''}`
+      ? `coupled:${coupled.jointKey}:${off.subjectId}:${off.semester}:${off.teacherId ?? '__none__'}:${off.group?.trim() ?? ''}`
       : `offering:${i}:${off.id ?? ''}`;
     const existing = units.get(key);
     const periods = offeringPeriods(off, subject);
@@ -390,7 +394,7 @@ export function teachingUnits(
         teacherId: off.teacherId,
         group: off.group,
         periods,
-        coupledGroupId: coupled?.id,
+        coupledGroupId: coupled?.group.id,
       });
     }
   }

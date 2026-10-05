@@ -14,6 +14,7 @@ import {
   type GraduatedClass,
   gradeToLevel,
 } from './types';
+import { pruneCoupledGroups } from './storage';
 
 /** ระดับชั้นถัดไป (null = จบการศึกษา) */
 const NEXT_GRADE: Record<Grade, Grade | null> = {
@@ -91,9 +92,10 @@ export function promoteAllData(data: AppData): PromoteResult {
       completed,
       offerings: [],
       graduated,
-      coupledGroups: data.coupledGroups
-        .map((g) => ({ ...g, classIds: g.classIds.filter((id) => classes.some((c) => c.id === id)) }))
-        .filter((g) => g.classIds.length >= 2),
+      coupledGroups: pruneCoupledGroups(
+        data.coupledGroups,
+        { classIds: data.classes.filter((c) => !classes.some((x) => x.id === c.id)).map((c) => c.id) },
+      ),
     },
     promotedCount,
     graduatedCount,

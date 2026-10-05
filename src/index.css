@@ -398,6 +398,34 @@ input, select, textarea {
   gap: 0.35rem;
   font-size: 0.8rem;
 }
+.coupled-joint-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+.coupled-joint-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.15rem 0.6rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.coupled-joint-list li b { color: var(--primary); font-weight: 600; }
+.coupled-subject-item { display: grid; gap: 0.2rem; }
+.coupled-joint-classes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.7rem;
+  margin: 0 0 0.35rem 1.7rem;
+  font-size: 0.8rem;
+}
+.joint-class { display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer; }
+.joint-class.disabled { opacity: 0.45; cursor: not-allowed; }
 .coupled-choice-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -428,6 +456,12 @@ input, select, textarea {
 }
 .choice-row small { color: var(--text-muted); font-size: 0.7rem; }
 .choice-row.disabled { opacity: 0.55; cursor: not-allowed; }
+.export-col-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
 .empty.compact { padding: 1rem 0.5rem; }
 
 /* ---------- ตัวเลขสรุป (stat) ---------- */

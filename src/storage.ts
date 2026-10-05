@@ -8,6 +8,8 @@ import { apiGetData, apiPutData, useRemote } from './api';
 import {
   type AppData,
   type ClassRoom,
+  type CoupledClassGroup,
+  type CoupledJoint,
   DATA_VERSION,
   DEFAULT_GROUPS,
   DEFAULT_PLANS,
@@ -97,6 +99,60 @@ function dedupeOfferingIds(offerings: Offering[]): Offering[] {
   });
 }
 
+type RawCoupledGroup = Partial<CoupledClassGroup> & { jointSubjectIds?: string[] };
+
+/**
+ * ทำกลุ่มห้องควบให้อยู่ในรูป "ระบุห้องที่ควบรายวิชา" (joints)
+ * - ข้อมูลเก่า (jointSubjectIds = ติ๊กวิชาแล้วควบทุกห้องในกลุ่ม) แปลงเป็น joints
+ *   โดยใส่เฉพาะห้องในกลุ่มที่มีวิชานั้นจริง เพื่อให้เห็นชัดและแก้รายคู่ได้
+ * - ห้อง+วิชาหนึ่งคู่ควบได้เพียงชุดเดียว (ชุดแรกชนะ) และแต่ละชุดต้องมีอย่างน้อย 2 ห้อง
+ */
+export function normalizeCoupledGroups(raw: RawCoupledGroup[] | undefined, offerings: Offering[]): CoupledClassGroup[] {
+  const classesBySubject = new Map<string, Set<string>>();
+  for (const o of offerings) {
+    const set = classesBySubject.get(o.subjectId) ?? new Set<string>();
+    set.add(o.classId);
+    classesBySubject.set(o.subjectId, set);
+  }
+  const taken = new Set<string>(); // `${classId}::${subjectId}`
+  return (raw ?? []).map((g) => {
+    const classIds = [...new Set(g.classIds ?? [])];
+    const inGroup = new Set(classIds);
+    const source: CoupledJoint[] = g.joints
+      ?? [...new Set(g.jointSubjectIds ?? [])].map((subjectId) => {
+        const having = classIds.filter((id) => classesBySubject.get(subjectId)?.has(id));
+        return { subjectId, classIds: having.length >= 2 ? having : classIds };
+      });
+    const joints: CoupledJoint[] = [];
+    for (const joint of source) {
+      const ids = [...new Set(joint.classIds ?? [])]
+        .filter((id) => inGroup.has(id) && !taken.has(`${id}::${joint.subjectId}`));
+      if (ids.length < 2) continue;
+      ids.forEach((id) => taken.add(`${id}::${joint.subjectId}`));
+      joints.push({ subjectId: joint.subjectId, classIds: ids });
+    }
+    return { id: g.id ?? '', name: g.name ?? '', classIds, joints };
+  });
+}
+
+/** ตัดห้อง/วิชาที่ถูกลบออกจากกลุ่มห้องควบ (ชุดควบที่เหลือไม่ถึง 2 ห้องจะถูกตัดทิ้ง) */
+export function pruneCoupledGroups(
+  groups: CoupledClassGroup[],
+  remove: { classIds?: Iterable<string>; subjectId?: string },
+): CoupledClassGroup[] {
+  const gone = new Set(remove.classIds ?? []);
+  return groups
+    .map((g) => ({
+      ...g,
+      classIds: g.classIds.filter((id) => !gone.has(id)),
+      joints: g.joints
+        .filter((j) => j.subjectId !== remove.subjectId)
+        .map((j) => ({ ...j, classIds: j.classIds.filter((id) => !gone.has(id)) }))
+        .filter((j) => j.classIds.length >= 2),
+    }))
+    .filter((g) => g.classIds.length >= 2);
+}
+
 /** ทำให้ก้อนข้อมูลสมบูรณ์เสมอ (กันข้อมูลเสีย/ไม่ครบ) */
 export function normalize(raw: Partial<AppData> | undefined): AppData {
   const migrated = migrateTeachers(raw?.teachers ?? [], raw?.offerings ?? []);
@@ -110,11 +166,7 @@ export function normalize(raw: Partial<AppData> | undefined): AppData {
     subjects: raw?.subjects ?? [],
     classes,
     offerings,
-    coupledGroups: (raw?.coupledGroups ?? []).map((g) => ({
-      ...g,
-      classIds: [...new Set(g.classIds ?? [])],
-      jointSubjectIds: [...new Set(g.jointSubjectIds ?? [])],
-    })),
+    coupledGroups: normalizeCoupledGroups(raw?.coupledGroups, offerings),
     teachers,
     completed: raw?.completed ?? [],
     graduated: raw?.graduated ?? [],

@@ -1,4 +1,4 @@
-// Subjects — คลังรายวิชา: เพิ่ม/แก้/ลบ/ค้นหา/กรอง + นำเข้าจาก Excel
+// Subjects — คลังรายวิชา: เพิ่ม/แก้/ลบ/ค้นหา/กรอง + นำเข้า/ส่งออก Excel
 import { useMemo, useRef, useState } from 'react';
 import type { AppDataApi } from '../hooks/useAppData';
 import {
@@ -15,6 +15,7 @@ import { Modal } from './common/Modal';
 import { ConfirmDialog, type ConfirmState } from './common/ConfirmDialog';
 import { Toast, type ToastData } from './common/Toast';
 import { ImportSubjectsModal } from './ImportSubjectsModal';
+import { ExportSubjectsModal } from './ExportSubjectsModal';
 
 interface Props {
   api: AppDataApi;
@@ -81,6 +82,7 @@ export function Subjects({ api }: Props) {
   const [importState, setImportState] = useState<{ result: ParseResult; fileName: string } | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const flash = (message: string, type: ToastData['type'] = 'success') => setToast({ message, type });
@@ -106,8 +108,9 @@ export function Subjects({ api }: Props) {
     });
   }, [data.subjects, search, fArea, fType, fLevel]);
 
-  const sorted = useMemo(() => {
-    const arr = [...filtered];
+  // เรียงตามคอลัมน์ที่เลือก (ใช้ทั้งตารางและไฟล์ส่งออก)
+  const sortSubjects = useMemo(() => (list: Subject[]) => {
+    const arr = [...list];
     arr.sort((a, b) => {
       let cmp: number;
       if (sortKey === 'area') {
@@ -120,7 +123,9 @@ export function Subjects({ api }: Props) {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return arr;
-  }, [filtered, sortKey, sortDir]);
+  }, [sortKey, sortDir]);
+
+  const sorted = useMemo(() => sortSubjects(filtered), [sortSubjects, filtered]);
 
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -178,6 +183,7 @@ export function Subjects({ api }: Props) {
         <span className="spacer" />
         <button className="btn" onClick={() => downloadTemplate()}>⬇️ แม่แบบ Excel</button>
         <button className="btn" onClick={() => fileRef.current?.click()}>⬆️ นำเข้า Excel</button>
+        <button className="btn" onClick={() => setExportOpen(true)} disabled={data.subjects.length === 0}>📤 ส่งออก Excel</button>
         <button className="btn primary" onClick={() => setDraft(emptyDraft())}>+ เพิ่มรายวิชา</button>
         <input
           ref={fileRef}
@@ -359,6 +365,15 @@ export function Subjects({ api }: Props) {
           fileName={importState.fileName}
           api={api}
           onClose={() => setImportState(null)}
+          onDone={flash}
+        />
+      )}
+
+      {exportOpen && (
+        <ExportSubjectsModal
+          filtered={sorted}
+          all={sortSubjects(data.subjects)}
+          onClose={() => setExportOpen(false)}
           onDone={flash}
         />
       )}
